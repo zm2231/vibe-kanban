@@ -54,3 +54,7 @@ bloop/
 ├── pnpm-workspace.yaml    # pnpm workspace
 └── package.json           # Root scripts
 ```
+
+# Managing Shared Types Between Rust and TypeScript
+
+ts-rs allows you to derive TypeScript types from Rust structs/enums. By annotating your Rust types with #[derive(TS)] and related macros, ts-rs will generate .ts declaration files for those types.

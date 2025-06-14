@@ -68,3 +68,4 @@ coverage/
 .storybook-out
 
 .env
+frontend/dist
