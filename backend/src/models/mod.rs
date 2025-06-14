@@ -1,8 +1,9 @@
-use serde::Serialize;
+pub mod user;
+pub mod project;
+pub mod task;
+pub mod api_response;
 
-#[derive(Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: Option<T>,
-    pub message: Option<String>,
-}
+pub use user::User;
+pub use project::Project;
+pub use task::{Task, TaskStatus};
+pub use api_response::ApiResponse;
