@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post, put, delete},
+    routing::{get, post},
     Router,
     Json,
     response::Json as ResponseJson,

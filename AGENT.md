@@ -60,3 +60,7 @@ bloop/
 ts-rs allows you to derive TypeScript types from Rust structs/enums. By annotating your Rust types with #[derive(TS)] and related macros, ts-rs will generate .ts declaration files for those types.
 When making changes to the types, you can regenerate them using `npm run generate-types`
 Do not manually edit shared/types.ts
+
+# Process
+
+When working on any task that involves changes to the backend and the frontend, start with the backend. If any shared types need to be regenerated, regenerate them before starting the frontend changes.

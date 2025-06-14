@@ -7,7 +7,6 @@ use axum::{
 use sqlx::postgres::PgPoolOptions;
 use std::env;
 use tower_http::cors::CorsLayer;
-use tracing_subscriber;
 
 mod auth;
 mod models;

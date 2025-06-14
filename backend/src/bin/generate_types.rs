@@ -3,10 +3,6 @@ use std::path::Path;
 use ts_rs::TS;
 
 // Import all the types we want to export using the library crate
-use bloop_backend::models::{
-    ApiResponse, CreateProject, CreateUser, LoginRequest, LoginResponse, Project, UpdateProject,
-    UpdateUser, UserResponse,
-};
 
 fn main() {
     let shared_path = Path::new("../shared");
