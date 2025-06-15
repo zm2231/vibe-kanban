@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ApiResponse } from "@/types";
+import { ApiResponse } from "shared/types";
 import { authStorage, makeAuthenticatedRequest } from "@/lib/auth";
 import {
   Heart,

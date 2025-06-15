@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { isAuthenticated, authStorage, makeAuthenticatedRequest } from '@/lib/auth'
-import { User } from '@/types'
+import { User } from 'shared/types'
 
 interface AuthContextType {
   user: User | null
@@ -39,7 +39,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const userData: User = {
               id: data.data.user_id,
               email: data.data.email,
-              is_admin: data.data.is_admin || false
+              is_admin: data.data.is_admin || false,
+              created_at: new Date(),
+              updated_at: new Date()
             }
             authStorage.setUser(userData)
             setUser(userData)

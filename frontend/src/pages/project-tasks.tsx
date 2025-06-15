@@ -34,7 +34,7 @@ import {
   KanbanCard,
   type DragEndEvent 
 } from '@/components/ui/shadcn-io/kanban'
-import type { TaskStatus } from '@/types'
+import type { TaskStatus } from 'shared/types'
 
 interface Task {
   id: string

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Project, CreateProject, UpdateProject } from '@/types'
+import { Project, CreateProject, UpdateProject } from 'shared/types'
 import { AlertCircle } from 'lucide-react'
 import { makeAuthenticatedRequest } from '@/lib/auth'
 
