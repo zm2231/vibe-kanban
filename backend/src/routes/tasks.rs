@@ -224,3 +224,353 @@ pub fn tasks_router() -> Router {
         .route("/projects/:project_id/tasks", get(get_project_tasks).post(create_task))
         .route("/projects/:project_id/tasks/:task_id", get(get_task).put(update_task).delete(delete_task))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::extract::Extension;
+    use sqlx::PgPool;
+    use uuid::Uuid;
+    use chrono::Utc;
+    use crate::models::{user::User, project::Project, task::{CreateTask, UpdateTask, TaskStatus}};
+    use crate::auth::{AuthUser, hash_password};
+
+    async fn create_test_user(pool: &PgPool, email: &str, password: &str, is_admin: bool) -> User {
+        let id = Uuid::new_v4();
+        let now = Utc::now();
+        let password_hash = hash_password(password).unwrap();
+
+        sqlx::query_as!(
+            User,
+            "INSERT INTO users (id, email, password_hash, is_admin, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, password_hash, is_admin, created_at, updated_at",
+            id,
+            email,
+            password_hash,
+            is_admin,
+            now,
+            now
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn create_test_project(pool: &PgPool, name: &str, owner_id: Uuid) -> Project {
+        let id = Uuid::new_v4();
+        let now = Utc::now();
+
+        sqlx::query_as!(
+            Project,
+            "INSERT INTO projects (id, name, owner_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, owner_id, created_at, updated_at",
+            id,
+            name,
+            owner_id,
+            now,
+            now
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn create_test_task(pool: &PgPool, project_id: Uuid, title: &str, description: Option<String>, status: TaskStatus) -> Task {
+        let id = Uuid::new_v4();
+        let now = Utc::now();
+
+        sqlx::query_as!(
+            Task,
+            r#"INSERT INTO tasks (id, project_id, title, description, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, project_id, title, description, status as "status!: TaskStatus", created_at, updated_at"#,
+            id,
+            project_id,
+            title,
+            description,
+            status as TaskStatus,
+            now,
+            now
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    #[sqlx::test]
+    async fn test_get_project_tasks_success(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        
+        // Create multiple tasks
+        create_test_task(&pool, project.id, "Task 1", Some("Description 1".to_string()), TaskStatus::Todo).await;
+        create_test_task(&pool, project.id, "Task 2", None, TaskStatus::InProgress).await;
+        create_test_task(&pool, project.id, "Task 3", Some("Description 3".to_string()), TaskStatus::Done).await;
+
+        let auth = AuthUser {
+            user_id: user.id,
+            email: user.email,
+            is_admin: false,
+        };
+
+        let result = get_project_tasks(auth, Path(project.id), Extension(pool)).await;
+        assert!(result.is_ok());
+        
+        let response = result.unwrap().0;
+        assert!(response.success);
+        assert!(response.data.is_some());
+        assert_eq!(response.data.unwrap().len(), 3);
+    }
+
+    #[sqlx::test]
+    async fn test_get_project_tasks_empty_project(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Empty Project", user.id).await;
+
+        let auth = AuthUser {
+            user_id: user.id,
+            email: user.email,
+            is_admin: false,
+        };
+
+        let result = get_project_tasks(auth, Path(project.id), Extension(pool)).await;
+        assert!(result.is_ok());
+        
+        let response = result.unwrap().0;
+        assert!(response.success);
+        assert!(response.data.is_some());
+        assert_eq!(response.data.unwrap().len(), 0);
+    }
+
+    #[sqlx::test]
+    async fn test_get_task_success(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        let task = create_test_task(&pool, project.id, "Test Task", Some("Test Description".to_string()), TaskStatus::Todo).await;
+
+        let auth = AuthUser {
+            user_id: user.id,
+            email: user.email,
+            is_admin: false,
+        };
+
+        let result = get_task(auth, Path((project.id, task.id)), Extension(pool)).await;
+        assert!(result.is_ok());
+        
+        let response = result.unwrap().0;
+        assert!(response.success);
+        assert!(response.data.is_some());
+        let returned_task = response.data.unwrap();
+        assert_eq!(returned_task.id, task.id);
+        assert_eq!(returned_task.title, task.title);
+        assert_eq!(returned_task.description, task.description);
+        assert_eq!(returned_task.status, task.status);
+    }
+
+    #[sqlx::test]
+    async fn test_get_task_not_found(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        let nonexistent_task_id = Uuid::new_v4();
+
+        let auth = AuthUser {
+            user_id: user.id,
+            email: user.email,
+            is_admin: false,
+        };
+
+        let result = get_task(auth, Path((project.id, nonexistent_task_id)), Extension(pool)).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::NOT_FOUND);
+    }
+
+    #[sqlx::test]
+    async fn test_get_task_wrong_project(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project1 = create_test_project(&pool, "Project 1", user.id).await;
+        let project2 = create_test_project(&pool, "Project 2", user.id).await;
+        let task = create_test_task(&pool, project1.id, "Test Task", None, TaskStatus::Todo).await;
+
+        let auth = AuthUser {
+            user_id: user.id,
+            email: user.email,
+            is_admin: false,
+        };
+
+        // Try to get task from wrong project
+        let result = get_task(auth, Path((project2.id, task.id)), Extension(pool)).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::NOT_FOUND);
+    }
+
+    #[sqlx::test]
+    async fn test_create_task_success(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+
+        let auth = AuthUser {
+            user_id: user.id,
+            email: user.email,
+            is_admin: false,
+        };
+
+        let create_request = CreateTask {
+            project_id: project.id, // This will be overridden by the path parameter
+            title: "New Task".to_string(),
+            description: Some("Task description".to_string()),
+        };
+
+        let result = create_task(Path(project.id), auth, Extension(pool), Json(create_request)).await;
+        assert!(result.is_ok());
+        
+        let response = result.unwrap().0;
+        assert!(response.success);
+        assert!(response.data.is_some());
+        let created_task = response.data.unwrap();
+        assert_eq!(created_task.title, "New Task");
+        assert_eq!(created_task.description, Some("Task description".to_string()));
+        assert_eq!(created_task.status, TaskStatus::Todo);
+        assert_eq!(created_task.project_id, project.id);
+    }
+
+    #[sqlx::test]
+    async fn test_create_task_project_not_found(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let nonexistent_project_id = Uuid::new_v4();
+
+        let auth = AuthUser {
+            user_id: user.id,
+            email: user.email,
+            is_admin: false,
+        };
+
+        let create_request = CreateTask {
+            project_id: nonexistent_project_id,
+            title: "New Task".to_string(),
+            description: None,
+        };
+
+        let result = create_task(Path(nonexistent_project_id), auth, Extension(pool), Json(create_request)).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::NOT_FOUND);
+    }
+
+    #[sqlx::test]
+    async fn test_update_task_success(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        let task = create_test_task(&pool, project.id, "Original Title", Some("Original Description".to_string()), TaskStatus::Todo).await;
+
+        let update_request = UpdateTask {
+            title: Some("Updated Title".to_string()),
+            description: Some("Updated Description".to_string()),
+            status: Some(TaskStatus::InProgress),
+        };
+
+        let result = update_task(Path((project.id, task.id)), Extension(pool), Json(update_request)).await;
+        assert!(result.is_ok());
+        
+        let response = result.unwrap().0;
+        assert!(response.success);
+        assert!(response.data.is_some());
+        let updated_task = response.data.unwrap();
+        assert_eq!(updated_task.title, "Updated Title");
+        assert_eq!(updated_task.description, Some("Updated Description".to_string()));
+        assert_eq!(updated_task.status, TaskStatus::InProgress);
+    }
+
+    #[sqlx::test]
+    async fn test_update_task_partial(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        let task = create_test_task(&pool, project.id, "Original Title", Some("Original Description".to_string()), TaskStatus::Todo).await;
+
+        // Only update status
+        let update_request = UpdateTask {
+            title: None,
+            description: None,
+            status: Some(TaskStatus::Done),
+        };
+
+        let result = update_task(Path((project.id, task.id)), Extension(pool), Json(update_request)).await;
+        assert!(result.is_ok());
+        
+        let response = result.unwrap().0;
+        assert!(response.success);
+        assert!(response.data.is_some());
+        let updated_task = response.data.unwrap();
+        assert_eq!(updated_task.title, "Original Title"); // Should remain unchanged
+        assert_eq!(updated_task.description, Some("Original Description".to_string())); // Should remain unchanged
+        assert_eq!(updated_task.status, TaskStatus::Done); // Should be updated
+    }
+
+    #[sqlx::test]
+    async fn test_update_task_not_found(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        let nonexistent_task_id = Uuid::new_v4();
+
+        let update_request = UpdateTask {
+            title: Some("Updated Title".to_string()),
+            description: None,
+            status: None,
+        };
+
+        let result = update_task(Path((project.id, nonexistent_task_id)), Extension(pool), Json(update_request)).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::NOT_FOUND);
+    }
+
+    #[sqlx::test]
+    async fn test_update_task_wrong_project(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project1 = create_test_project(&pool, "Project 1", user.id).await;
+        let project2 = create_test_project(&pool, "Project 2", user.id).await;
+        let task = create_test_task(&pool, project1.id, "Test Task", None, TaskStatus::Todo).await;
+
+        let update_request = UpdateTask {
+            title: Some("Updated Title".to_string()),
+            description: None,
+            status: None,
+        };
+
+        // Try to update task in wrong project
+        let result = update_task(Path((project2.id, task.id)), Extension(pool), Json(update_request)).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::NOT_FOUND);
+    }
+
+    #[sqlx::test]
+    async fn test_delete_task_success(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        let task = create_test_task(&pool, project.id, "Task to Delete", None, TaskStatus::Todo).await;
+
+        let result = delete_task(Path((project.id, task.id)), Extension(pool)).await;
+        assert!(result.is_ok());
+        
+        let response = result.unwrap().0;
+        assert!(response.success);
+        assert_eq!(response.message.unwrap(), "Task deleted successfully");
+    }
+
+    #[sqlx::test]
+    async fn test_delete_task_not_found(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project = create_test_project(&pool, "Test Project", user.id).await;
+        let nonexistent_task_id = Uuid::new_v4();
+
+        let result = delete_task(Path((project.id, nonexistent_task_id)), Extension(pool)).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::NOT_FOUND);
+    }
+
+    #[sqlx::test]
+    async fn test_delete_task_wrong_project(pool: PgPool) {
+        let user = create_test_user(&pool, "test@example.com", "password123", false).await;
+        let project1 = create_test_project(&pool, "Project 1", user.id).await;
+        let project2 = create_test_project(&pool, "Project 2", user.id).await;
+        let task = create_test_task(&pool, project1.id, "Task to Delete", None, TaskStatus::Todo).await;
+
+        // Try to delete task from wrong project
+        let result = delete_task(Path((project2.id, task.id)), Extension(pool)).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::NOT_FOUND);
+    }
+}
