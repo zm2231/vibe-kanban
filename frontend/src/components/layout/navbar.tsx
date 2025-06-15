@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { authStorage, logout } from '@/lib/auth'
+import { authStorage } from '@/lib/auth'
 import { ArrowLeft, FolderOpen, Users, LogOut } from 'lucide-react'
 
 interface NavbarProps {
@@ -13,7 +13,6 @@ export function Navbar({ onLogout }: NavbarProps) {
   const isHome = location.pathname === '/'
 
   const handleLogout = () => {
-    logout()
     onLogout()
   }
 

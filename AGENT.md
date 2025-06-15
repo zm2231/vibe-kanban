@@ -61,6 +61,10 @@ ts-rs allows you to derive TypeScript types from Rust structs/enums. By annotati
 When making changes to the types, you can regenerate them using `npm run generate-types`
 Do not manually edit shared/types.ts
 
-# Process
+# Working on the frontend AND the backend
 
 When working on any task that involves changes to the backend and the frontend, start with the backend. If any shared types need to be regenerated, regenerate them before starting the frontend changes.
+
+# Testing your work
+
+Try to build the Typescript project after any frontend changes `npm run build`

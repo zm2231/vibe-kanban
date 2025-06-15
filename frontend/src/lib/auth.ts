@@ -1,4 +1,4 @@
-import { User } from 'shared/types'
+import { User } from '@/types'
 
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
@@ -55,9 +55,4 @@ export const makeAuthenticatedRequest = async (url: string, options: RequestInit
 
 export const isAuthenticated = (): boolean => {
   return !!authStorage.getToken()
-}
-
-export const logout = (): void => {
-  authStorage.clear()
-  window.location.href = '/'
 }

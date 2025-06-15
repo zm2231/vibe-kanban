@@ -292,9 +292,29 @@ pub async fn get_current_user(
     }
 }
 
-pub fn users_router() -> Router {
+pub async fn check_auth_status(
+    auth: AuthUser,
+) -> ResponseJson<ApiResponse<serde_json::Value>> {
+    ResponseJson(ApiResponse {
+        success: true,
+        data: Some(serde_json::json!({
+            "authenticated": true,
+            "user_id": auth.user_id,
+            "email": auth.email,
+            "is_admin": auth.is_admin
+        })),
+        message: Some("User is authenticated".to_string()),
+    })
+}
+
+pub fn public_users_router() -> Router {
     Router::new()
         .route("/auth/login", post(login))
+}
+
+pub fn protected_users_router() -> Router {
+    Router::new()
+        .route("/auth/status", get(check_auth_status))
         .route("/auth/me", get(get_current_user))
         .route("/users", get(get_users).post(create_user))
         .route("/users/:id", get(get_user).put(update_user).delete(delete_user))

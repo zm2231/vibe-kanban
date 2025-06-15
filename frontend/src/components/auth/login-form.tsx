@@ -4,15 +4,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { LoginRequest, LoginResponse, ApiResponse } from 'shared/types'
-import { authStorage } from '@/lib/auth'
+import { LoginRequest, LoginResponse, ApiResponse } from '@/types'
+import { useAuth } from '@/contexts/auth-context'
 import { LogIn, AlertCircle } from 'lucide-react'
 
 interface LoginFormProps {
-  onSuccess: () => void
+  onSuccess?: () => void
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -41,9 +42,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       const data: ApiResponse<LoginResponse> = await response.json()
       
       if (data.success && data.data) {
-        authStorage.setToken(data.data.token)
-        authStorage.setUser(data.data.user)
-        onSuccess()
+        login(data.data.user, data.data.token)
+        onSuccess?.()
       } else {
         throw new Error('Login failed')
       }

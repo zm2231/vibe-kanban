@@ -13,7 +13,10 @@ use chrono::Utc;
 use crate::models::{ApiResponse, project::{Project, CreateProject, UpdateProject}};
 use crate::auth::AuthUser;
 
-pub async fn get_projects(Extension(pool): Extension<PgPool>) -> Result<ResponseJson<ApiResponse<Vec<Project>>>, StatusCode> {
+pub async fn get_projects(
+    auth: AuthUser,
+    Extension(pool): Extension<PgPool>
+) -> Result<ResponseJson<ApiResponse<Vec<Project>>>, StatusCode> {
     match sqlx::query_as!(
         Project,
         "SELECT id, name, owner_id, created_at, updated_at FROM projects ORDER BY created_at DESC"
@@ -34,6 +37,7 @@ pub async fn get_projects(Extension(pool): Extension<PgPool>) -> Result<Response
 }
 
 pub async fn get_project(
+    auth: AuthUser,
     Path(id): Path<Uuid>,
     Extension(pool): Extension<PgPool>
 ) -> Result<ResponseJson<ApiResponse<Project>>, StatusCode> {

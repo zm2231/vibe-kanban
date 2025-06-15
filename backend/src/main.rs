@@ -1,5 +1,6 @@
 use axum::{
     extract::Extension,
+    middleware,
     response::Json as ResponseJson,
     routing::{get, post},
     Json, Router,
@@ -12,7 +13,7 @@ mod auth;
 mod models;
 mod routes;
 
-use auth::hash_password;
+use auth::{auth_middleware, hash_password};
 use models::ApiResponse;
 use routes::{health, projects, tasks, users};
 
@@ -51,13 +52,24 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("Failed to create admin account: {}", e);
     }
 
-    let app = Router::new()
+    // Public routes (no auth required)
+    let public_routes = Router::new()
         .route("/", get(|| async { "Bloop API" }))
         .route("/health", get(health::health_check))
         .route("/echo", post(echo_handler))
+        .merge(users::public_users_router());
+
+    // Protected routes (auth required)
+    let protected_routes = Router::new()
         .merge(projects::projects_router())
         .merge(tasks::tasks_router())
-        .merge(users::users_router())
+        .merge(users::protected_users_router())
+        .layer(Extension(pool.clone()))
+        .layer(middleware::from_fn(auth_middleware));
+
+    let app = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
         .layer(Extension(pool))
         .layer(CorsLayer::permissive());
 

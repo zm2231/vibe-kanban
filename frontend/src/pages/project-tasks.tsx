@@ -25,7 +25,7 @@ import {
   SelectValue 
 } from '@/components/ui/select'
 import { ArrowLeft, Plus, MoreHorizontal, Trash2, Edit } from 'lucide-react'
-import { getAuthHeaders } from '@/lib/auth'
+import { makeAuthenticatedRequest } from '@/lib/auth'
 import { 
   KanbanProvider, 
   KanbanBoard, 
@@ -34,7 +34,7 @@ import {
   KanbanCard,
   type DragEndEvent 
 } from '@/components/ui/shadcn-io/kanban'
-import type { TaskStatus } from '../../../shared/types'
+import type { TaskStatus } from '@/types'
 
 interface Task {
   id: string
@@ -108,9 +108,7 @@ export function ProjectTasks() {
 
   const fetchProject = async () => {
     try {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        headers: getAuthHeaders()
-      })
+      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}`)
       
       if (response.ok) {
         const result: ApiResponse<Project> = await response.json()
@@ -129,9 +127,7 @@ export function ProjectTasks() {
   const fetchTasks = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/projects/${projectId}/tasks`, {
-        headers: getAuthHeaders()
-      })
+      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}/tasks`)
       
       if (response.ok) {
         const result: ApiResponse<Task[]> = await response.json()
@@ -152,12 +148,8 @@ export function ProjectTasks() {
     if (!newTaskTitle.trim()) return
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/tasks`, {
+      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}/tasks`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           project_id: projectId,
           title: newTaskTitle,
@@ -182,12 +174,8 @@ export function ProjectTasks() {
     if (!editingTask || !editTaskTitle.trim()) return
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/tasks/${editingTask.id}`, {
+      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}/tasks/${editingTask.id}`, {
         method: 'PUT',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           title: editTaskTitle,
           description: editTaskDescription || null,
@@ -211,9 +199,8 @@ export function ProjectTasks() {
     if (!confirm('Are you sure you want to delete this task?')) return
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
+      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
       })
 
       if (response.ok) {
@@ -252,12 +239,8 @@ export function ProjectTasks() {
     ))
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
+      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
         method: 'PUT',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           title: task.title,
           description: task.description,

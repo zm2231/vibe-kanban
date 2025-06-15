@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { User, ApiResponse } from 'shared/types'
+import { User, ApiResponse } from '@/types'
 import { UserForm } from '@/components/users/user-form'
 import { makeAuthenticatedRequest, authStorage } from '@/lib/auth'
 import { Plus, Edit, Trash2, Calendar, AlertCircle, Loader2, Shield, User as UserIcon } from 'lucide-react'
@@ -142,7 +142,7 @@ export function Users() {
                 </div>
                 <CardDescription className="flex items-center">
                   <Calendar className="mr-1 h-3 w-3" />
-                  Joined {new Date(user.created_at).toLocaleDateString()}
+                  Joined {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
                 </CardDescription>
               </CardHeader>
               <CardContent>

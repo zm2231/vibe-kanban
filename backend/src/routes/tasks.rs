@@ -14,6 +14,7 @@ use crate::models::{ApiResponse, task::{Task, CreateTask, UpdateTask, TaskStatus
 use crate::auth::AuthUser;
 
 pub async fn get_project_tasks(
+    auth: AuthUser,
     Path(project_id): Path<Uuid>,
     Extension(pool): Extension<PgPool>
 ) -> Result<ResponseJson<ApiResponse<Vec<Task>>>, StatusCode> {
@@ -41,6 +42,7 @@ pub async fn get_project_tasks(
 }
 
 pub async fn get_task(
+    auth: AuthUser,
     Path((project_id, task_id)): Path<(Uuid, Uuid)>,
     Extension(pool): Extension<PgPool>
 ) -> Result<ResponseJson<ApiResponse<Task>>, StatusCode> {
