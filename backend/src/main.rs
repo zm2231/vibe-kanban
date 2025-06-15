@@ -17,8 +17,6 @@ use auth::{auth_middleware, hash_password};
 use models::ApiResponse;
 use routes::{health, projects, tasks, users};
 
-
-
 async fn echo_handler(
     Json(payload): Json<serde_json::Value>,
 ) -> ResponseJson<ApiResponse<serde_json::Value>> {
@@ -32,10 +30,15 @@ async fn echo_handler(
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load environment variables from .env file
-    dotenvy::dotenv().ok();
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
+    dotenvy::from_path(format!("{manifest_dir}/.env")).ok();
+    // dotenvy::dotenv().ok();
 
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive("bloop_backend=debug".parse()?))
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive("bloop_backend=debug".parse()?),
+        )
         .init();
 
     // Database connection
@@ -87,8 +90,7 @@ async fn create_admin_account(pool: &sqlx::PgPool) -> anyhow::Result<()> {
     use uuid::Uuid;
 
     let admin_email = "admin@example.com";
-    let admin_password = env::var("ADMIN_PASSWORD")
-        .unwrap_or_else(|_| "admin123".to_string());
+    let admin_password = env::var("ADMIN_PASSWORD").unwrap_or_else(|_| "admin123".to_string());
 
     // Check if admin already exists
     let existing_admin = sqlx::query!(
@@ -112,7 +114,7 @@ async fn create_admin_account(pool: &sqlx::PgPool) -> anyhow::Result<()> {
         )
         .execute(pool)
         .await?;
-        
+
         tracing::info!("Updated admin account");
     } else {
         // Create new admin account
