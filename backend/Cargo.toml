@@ -27,6 +27,7 @@ jsonwebtoken = "9.2"
 ts-rs = { version = "9.0", features = ["uuid-impl", "chrono-impl"] }
 dirs = "5.0"
 git2 = "0.18"
+async-trait = "0.1"
 
 [build-dependencies]
 ts-rs = { version = "9.0", features = ["uuid-impl", "chrono-impl"] }

@@ -2,12 +2,12 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::process::Command;
+
 use uuid::Uuid;
 
 use crate::models::{
     task_attempt_activity::{CreateTaskAttemptActivity, TaskAttemptActivity}, 
-    task_attempt::TaskAttemptStatus
+    task_attempt::{TaskAttempt, TaskAttemptStatus}
 };
 
 #[derive(Debug)]
@@ -86,13 +86,25 @@ pub async fn execution_monitor(app_state: AppState) {
                 }
             }
 
-            // Spawn the process
-            let child = match Command::new("echo")
-                .arg("hello world")
-                .spawn() {
+            // Get the task attempt to access the executor
+            let task_attempt = match TaskAttempt::find_by_id(&app_state.db_pool, attempt_id).await {
+                Ok(Some(attempt)) => attempt,
+                Ok(None) => {
+                    tracing::error!("Task attempt {} not found", attempt_id);
+                    continue;
+                }
+                Err(e) => {
+                    tracing::error!("Failed to fetch task attempt {}: {}", attempt_id, e);
+                    continue;
+                }
+            };
+
+            // Get the executor and spawn the process
+            let executor = task_attempt.get_executor();
+            let child = match executor.spawn(&app_state.db_pool, task_attempt.task_id, &task_attempt.worktree_path).await {
                 Ok(child) => child,
                 Err(e) => {
-                    tracing::error!("Failed to spawn echo command: {}", e);
+                    tracing::error!("Failed to spawn command for task attempt {}: {}", attempt_id, e);
                     continue;
                 }
             };

@@ -69,8 +69,11 @@ export {}
 
 export {}
 
+export {}
+
 export {}"#,
         bloop_backend::models::ApiResponse::<()>::decl(),
+        bloop_backend::executor::ExecutorConfig::decl(),
         bloop_backend::models::project::CreateProject::decl(),
         bloop_backend::models::project::Project::decl(),
         bloop_backend::models::project::UpdateProject::decl(),

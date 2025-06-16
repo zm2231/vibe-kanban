@@ -3,6 +3,8 @@
 
 export type ApiResponse<T> = { success: boolean, data: T | null, message: string | null, };
 
+export type ExecutorConfig = { "type": "echo" };
+
 export type CreateProject = { name: string, git_repo_path: string, use_existing_repo: boolean, };
 
 export type Project = { id: string, name: string, git_repo_path: string, owner_id: string, created_at: Date, updated_at: Date, };
@@ -21,7 +23,7 @@ export type TaskAttemptStatus = "init" | "inprogress" | "paused";
 
 export type TaskAttempt = { id: string, task_id: string, worktree_path: string, base_commit: string | null, merge_commit: string | null, created_at: string, updated_at: string, };
 
-export type CreateTaskAttempt = { task_id: string, worktree_path: string, base_commit: string | null, merge_commit: string | null, };
+export type CreateTaskAttempt = { task_id: string, worktree_path: string, base_commit: string | null, merge_commit: string | null, executor_config: ExecutorConfig | null, };
 
 export type UpdateTaskAttempt = { worktree_path: string | null, base_commit: string | null, merge_commit: string | null, };
 

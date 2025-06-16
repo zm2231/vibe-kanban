@@ -9,7 +9,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { makeAuthenticatedRequest } from '@/lib/auth'
-import type { TaskStatus, TaskAttempt, TaskAttemptActivity } from 'shared/types'
+import type { TaskStatus, TaskAttempt, TaskAttemptActivity, ExecutorConfig } from 'shared/types'
 
 interface Task {
   id: string
@@ -123,6 +123,7 @@ export function TaskDetailsDialog({ isOpen, onOpenChange, task, projectId, onErr
             worktree_path: worktreePath,
             base_commit: null,
             merge_commit: null,
+            executor_config: { type: "echo" } as ExecutorConfig,
           }),
         }
       )
