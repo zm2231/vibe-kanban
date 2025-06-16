@@ -189,4 +189,52 @@ impl TaskAttempt {
         // Default to echo executor
         ExecutorConfig::Echo.create_executor()
     }
+
+    /// Update stdout and stderr for this task attempt
+    pub async fn update_output(
+        pool: &PgPool,
+        id: Uuid,
+        stdout: Option<&str>,
+        stderr: Option<&str>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE task_attempts SET stdout = $1, stderr = $2, updated_at = NOW() WHERE id = $3",
+            stdout,
+            stderr,
+            id
+        )
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Append to stdout and stderr for this task attempt (for streaming updates)
+    pub async fn append_output(
+        pool: &PgPool,
+        id: Uuid,
+        stdout_append: Option<&str>,
+        stderr_append: Option<&str>,
+    ) -> Result<(), sqlx::Error> {
+        if let Some(stdout_data) = stdout_append {
+            sqlx::query!(
+                "UPDATE task_attempts SET stdout = COALESCE(stdout, '') || $1, updated_at = NOW() WHERE id = $2",
+                stdout_data,
+                id
+            )
+            .execute(pool)
+            .await?;
+        }
+        
+        if let Some(stderr_data) = stderr_append {
+            sqlx::query!(
+                "UPDATE task_attempts SET stderr = COALESCE(stderr, '') || $1, updated_at = NOW() WHERE id = $2",
+                stderr_data,
+                id
+            )
+            .execute(pool)
+            .await?;
+        }
+        
+        Ok(())
+    }
 }

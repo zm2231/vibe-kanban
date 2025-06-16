@@ -31,9 +31,24 @@ impl Executor for EchoExecutor {
             task.description.as_deref().unwrap_or("No description")
         );
 
-        let child = Command::new("echo")
+        // For demonstration of streaming, we can use a shell command that outputs multiple lines
+        let script = format!(
+            r#"echo "Starting task: {}"
+for i in {{1..5}}; do
+    echo "Progress line $i"
+    sleep 1
+done
+echo "Task completed: {}""#,
+            task.title,
+            task.title
+        );
+
+        let child = Command::new("sh")
             .kill_on_drop(true)
-            .arg(&message)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .arg("-c")
+            .arg(&script)
             .spawn()
             .map_err(ExecutorError::SpawnFailed)?;
 
@@ -41,6 +56,6 @@ impl Executor for EchoExecutor {
     }
 
     fn description(&self) -> &'static str {
-        "Echoes the task title and description"
+        "Demonstrates streaming output with a multi-line shell script"
     }
 }

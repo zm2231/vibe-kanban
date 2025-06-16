@@ -99,12 +99,12 @@ pub async fn execution_monitor(app_state: AppState) {
                 }
             };
 
-            // Get the executor and spawn the process
+            // Get the executor and start streaming execution
             let executor = task_attempt.get_executor();
-            let child = match executor.spawn(&app_state.db_pool, task_attempt.task_id, &task_attempt.worktree_path).await {
+            let child = match executor.execute_streaming(&app_state.db_pool, task_attempt.task_id, attempt_id, &task_attempt.worktree_path).await {
                 Ok(child) => child,
                 Err(e) => {
-                    tracing::error!("Failed to spawn command for task attempt {}: {}", attempt_id, e);
+                    tracing::error!("Failed to start streaming execution for task attempt {}: {}", attempt_id, e);
                     continue;
                 }
             };
