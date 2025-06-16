@@ -69,3 +69,4 @@ coverage/
 
 .env
 frontend/dist
+backend/bindings
