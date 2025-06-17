@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { makeAuthenticatedRequest } from '@/lib/auth'
 import type { TaskStatus, TaskAttempt, TaskAttemptActivity, ExecutorConfig } from 'shared/types'
 
@@ -49,6 +50,7 @@ export function TaskDetailsDialog({ isOpen, onOpenChange, task, projectId, onErr
   const [selectedAttempt, setSelectedAttempt] = useState<TaskAttempt | null>(null)
   const [attemptActivities, setAttemptActivities] = useState<TaskAttemptActivity[]>([])
   const [activitiesLoading, setActivitiesLoading] = useState(false)
+  const [selectedExecutor, setSelectedExecutor] = useState<ExecutorConfig>({ type: "echo" })
   const [creatingAttempt, setCreatingAttempt] = useState(false)
 
   useEffect(() => {
@@ -123,7 +125,7 @@ export function TaskDetailsDialog({ isOpen, onOpenChange, task, projectId, onErr
             worktree_path: worktreePath,
             base_commit: null,
             merge_commit: null,
-            executor_config: { type: "echo" } as ExecutorConfig,
+            executor_config: selectedExecutor,
           }),
         }
       )
@@ -175,13 +177,30 @@ export function TaskDetailsDialog({ isOpen, onOpenChange, task, projectId, onErr
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Task Attempts</h3>
-              <Button 
-                onClick={createNewAttempt}
-                disabled={creatingAttempt}
-                size="sm"
-              >
-                {creatingAttempt ? 'Creating...' : 'Create New Attempt'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm">Executor:</Label>
+                  <Select 
+                    value={selectedExecutor.type} 
+                    onValueChange={(value) => setSelectedExecutor({ type: value as "echo" | "claude" })}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="echo">Echo</SelectItem>
+                      <SelectItem value="claude">Claude</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  onClick={createNewAttempt}
+                  disabled={creatingAttempt}
+                  size="sm"
+                >
+                  {creatingAttempt ? 'Creating...' : 'Create New Attempt'}
+                </Button>
+              </div>
             </div>
             {taskAttemptsLoading ? (
               <div className="text-center py-4">Loading attempts...</div>

@@ -3,7 +3,7 @@
 
 export type ApiResponse<T> = { success: boolean, data: T | null, message: string | null, };
 
-export type ExecutorConfig = { "type": "echo" };
+export type ExecutorConfig = { "type": "echo" } | { "type": "claude" };
 
 export type CreateProject = { name: string, git_repo_path: string, use_existing_repo: boolean, };
 

@@ -5,7 +5,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use ts_rs::TS;
 use uuid::Uuid;
 
-use crate::executors::EchoExecutor;
+use crate::executors::{EchoExecutor, ClaudeExecutor};
 
 #[derive(Debug)]
 pub enum ExecutorError {
@@ -124,6 +124,7 @@ pub trait Executor: Send + Sync {
 #[ts(export)]
 pub enum ExecutorConfig {
     Echo,
+    Claude,
     // Future executors can be added here
     // Shell { command: String },
     // Docker { image: String, command: String },
@@ -133,12 +134,14 @@ impl ExecutorConfig {
     pub fn create_executor(&self) -> Box<dyn Executor> {
         match self {
             ExecutorConfig::Echo => Box::new(EchoExecutor),
+            ExecutorConfig::Claude => Box::new(ClaudeExecutor),
         }
     }
     
     pub fn executor_type(&self) -> &'static str {
         match self {
             ExecutorConfig::Echo => "echo",
+            ExecutorConfig::Claude => "claude",
         }
     }
 }
