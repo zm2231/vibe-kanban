@@ -8,14 +8,12 @@ use axum::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::auth::AuthUser;
 use crate::models::{
     project::{CreateProject, Project, UpdateProject},
     ApiResponse,
 };
 
 pub async fn get_projects(
-    _auth: AuthUser,
     Extension(pool): Extension<PgPool>,
 ) -> Result<ResponseJson<ApiResponse<Vec<Project>>>, StatusCode> {
     match Project::find_all(&pool).await {
@@ -32,7 +30,6 @@ pub async fn get_projects(
 }
 
 pub async fn get_project(
-    _auth: AuthUser,
     Path(id): Path<Uuid>,
     Extension(pool): Extension<PgPool>,
 ) -> Result<ResponseJson<ApiResponse<Project>>, StatusCode> {
@@ -51,17 +48,12 @@ pub async fn get_project(
 }
 
 pub async fn create_project(
-    auth: AuthUser,
     Extension(pool): Extension<PgPool>,
     Json(payload): Json<CreateProject>,
 ) -> Result<ResponseJson<ApiResponse<Project>>, StatusCode> {
     let id = Uuid::new_v4();
 
-    tracing::debug!(
-        "Creating project '{}' for user {}",
-        payload.name,
-        auth.user_id
-    );
+    tracing::debug!("Creating project '{}'", payload.name);
 
     // Check if git repo path is already used by another project
     match Project::find_by_git_repo_path(&pool, &payload.git_repo_path).await {
@@ -154,7 +146,7 @@ pub async fn create_project(
         }
     }
 
-    match Project::create(&pool, &payload, auth.user_id, id).await {
+    match Project::create(&pool, &payload, id).await {
         Ok(project) => Ok(ResponseJson(ApiResponse {
             success: true,
             data: Some(project),
@@ -261,10 +253,7 @@ pub fn projects_router() -> Router {
 mod tests {
     use super::*;
     use crate::auth::{hash_password, AuthUser};
-    use crate::models::{
-        project::{CreateProject, UpdateProject},
-        user::User,
-    };
+    use crate::models::project::{CreateProject, UpdateProject};
     use axum::extract::Extension;
     use chrono::Utc;
     use sqlx::PgPool;

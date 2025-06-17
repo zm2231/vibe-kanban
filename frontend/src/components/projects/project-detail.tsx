@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Project, ApiResponse } from 'shared/types'
 import { ProjectForm } from './project-form'
-import { makeAuthenticatedRequest } from '@/lib/auth'
-import { ArrowLeft, Edit, Trash2, Calendar, Clock, User, AlertCircle, Loader2, CheckSquare } from 'lucide-react'
+import { makeRequest } from '@/lib/api'
+import { ArrowLeft, Edit, Trash2, Calendar, Clock, AlertCircle, Loader2, CheckSquare } from 'lucide-react'
 
 interface ProjectDetailProps {
   projectId: string
@@ -25,7 +25,7 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
     setLoading(true)
     setError('')
     try {
-      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}`)
+      const response = await makeRequest(`/api/projects/${projectId}`)
       const data: ApiResponse<Project> = await response.json()
       if (data.success && data.data) {
         setProject(data.data)
@@ -45,7 +45,7 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
     if (!confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone.`)) return
 
     try {
-      const response = await makeAuthenticatedRequest(`/api/projects/${projectId}`, {
+      const response = await makeRequest(`/api/projects/${projectId}`, {
         method: 'DELETE',
       })
       if (response.ok) {
@@ -166,13 +166,7 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
                 <span className="text-muted-foreground">Last Updated:</span>
                 <span className="ml-2">{new Date(project.updated_at).toLocaleDateString()}</span>
               </div>
-              <div className="flex items-center text-sm">
-                <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Owner ID:</span>
-                <code className="ml-2 text-xs bg-muted px-1 py-0.5 rounded">
-                  {project.owner_id.substring(0, 8)}...
-                </code>
-              </div>
+
             </div>
           </CardContent>
         </Card>
