@@ -34,13 +34,12 @@ impl Executor for EchoExecutor {
         // For demonstration of streaming, we can use a shell command that outputs multiple lines
         let script = format!(
             r#"echo "Starting task: {}"
-for i in {{1..5}}; do
+for i in {{1..50}}; do
     echo "Progress line $i"
     sleep 1
 done
 echo "Task completed: {}""#,
-            task.title,
-            task.title
+            task.title, task.title
         );
 
         let child = Command::new("sh")

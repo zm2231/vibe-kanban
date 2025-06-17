@@ -75,6 +75,7 @@ export function TaskDetailsDialog({
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [selectedExecutor, setSelectedExecutor] = useState<string>("echo");
   const [creatingAttempt, setCreatingAttempt] = useState(false);
+  const [stoppingAttempt, setStoppingAttempt] = useState(false);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -82,6 +83,10 @@ export function TaskDetailsDialog({
   const [editedDescription, setEditedDescription] = useState("");
   const [editedStatus, setEditedStatus] = useState<TaskStatus>("todo");
   const [savingTask, setSavingTask] = useState(false);
+
+  // Check if the selected attempt is currently running (latest activity is "inprogress")
+  const isAttemptRunning = selectedAttempt && attemptActivities.length > 0 && 
+    attemptActivities[0].status === "inprogress";
 
   useEffect(() => {
     if (isOpen && task) {
@@ -233,6 +238,34 @@ export function TaskDetailsDialog({
       onError("Failed to create task attempt");
     } finally {
       setCreatingAttempt(false);
+    }
+  };
+
+  const stopTaskAttempt = async () => {
+    if (!task || !selectedAttempt) return;
+
+    try {
+      setStoppingAttempt(true);
+      const response = await makeAuthenticatedRequest(
+        `/api/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/stop`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Refresh the activities list to show the stopped status
+        fetchAttemptActivities(selectedAttempt.id);
+      } else {
+        onError("Failed to stop task attempt");
+      }
+    } catch (err) {
+      onError("Failed to stop task attempt");
+    } finally {
+      setStoppingAttempt(false);
     }
   };
 
@@ -513,31 +546,47 @@ export function TaskDetailsDialog({
 
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">
-                      New Attempt
+                      Actions
                     </Label>
                     <div className="flex flex-col gap-2">
-                      <Select
-                        value={selectedExecutor}
-                        onValueChange={(value) =>
-                          setSelectedExecutor(value as "echo" | "claude")
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="echo">Echo</SelectItem>
-                          <SelectItem value="claude">Claude</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        onClick={createNewAttempt}
-                        disabled={creatingAttempt}
-                        size="sm"
-                        className="w-full"
-                      >
-                        {creatingAttempt ? "Creating..." : "Create Attempt"}
-                      </Button>
+                      {isAttemptRunning && (
+                        <Button
+                          onClick={stopTaskAttempt}
+                          disabled={stoppingAttempt}
+                          size="sm"
+                          variant="destructive"
+                          className="w-full"
+                        >
+                          {stoppingAttempt ? "Stopping..." : "Stop Execution"}
+                        </Button>
+                      )}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          New Attempt
+                        </Label>
+                        <Select
+                          value={selectedExecutor}
+                          onValueChange={(value) =>
+                            setSelectedExecutor(value as "echo" | "claude")
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="echo">Echo</SelectItem>
+                            <SelectItem value="claude">Claude</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          onClick={createNewAttempt}
+                          disabled={creatingAttempt}
+                          size="sm"
+                          className="w-full"
+                        >
+                          {creatingAttempt ? "Creating..." : "Create Attempt"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
