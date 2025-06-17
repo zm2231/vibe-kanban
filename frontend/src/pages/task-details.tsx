@@ -56,6 +56,7 @@ export function TaskDetailsPage() {
   const [taskLoading, setTaskLoading] = useState(true);
   const [taskAttempts, setTaskAttempts] = useState<TaskAttempt[]>([]);
   const [taskAttemptsLoading, setTaskAttemptsLoading] = useState(false);
+  const [taskAttemptsInitialLoad, setTaskAttemptsInitialLoad] = useState(true);
   const [selectedAttempt, setSelectedAttempt] = useState<TaskAttempt | null>(
     null
   );
@@ -75,9 +76,26 @@ export function TaskDetailsPage() {
   const [editedStatus, setEditedStatus] = useState<TaskStatus>("todo");
   const [savingTask, setSavingTask] = useState(false);
 
-  // Check if the selected attempt is currently running (latest activity is "inprogress")
-  const isAttemptRunning = selectedAttempt && attemptActivities.length > 0 && 
-    attemptActivities[0].status === "inprogress";
+  // Check if the selected attempt is currently running (latest activity is "inprogress" or "init")
+  const isAttemptRunning =
+    selectedAttempt &&
+    attemptActivities.length > 0 &&
+    (attemptActivities[0].status === "inprogress" ||
+      attemptActivities[0].status === "init");
+
+  // Polling for updates when attempt is running
+  useEffect(() => {
+    if (!isAttemptRunning || !task) return;
+
+    const interval = setInterval(() => {
+      fetchTaskAttempts(task.id, true); // Background update
+      if (selectedAttempt) {
+        fetchAttemptActivities(selectedAttempt.id, true); // Background update
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isAttemptRunning, task?.id, selectedAttempt?.id]);
 
   useEffect(() => {
     if (projectId && taskId) {
@@ -122,11 +140,18 @@ export function TaskDetailsPage() {
     }
   };
 
-  const fetchTaskAttempts = async (taskId: string) => {
+  const fetchTaskAttempts = async (
+    taskId: string,
+    isBackgroundUpdate = false
+  ) => {
     if (!projectId) return;
 
     try {
-      setTaskAttemptsLoading(true);
+      // Show loading for user-initiated actions, not background polling
+      if (!isBackgroundUpdate) {
+        setTaskAttemptsLoading(true);
+      }
+
       const response = await makeAuthenticatedRequest(
         `/api/projects/${projectId}/tasks/${taskId}/attempts`
       );
@@ -135,8 +160,21 @@ export function TaskDetailsPage() {
         const result: ApiResponse<TaskAttempt[]> = await response.json();
         if (result.success && result.data) {
           setTaskAttempts(result.data);
-          // Automatically select the latest attempt if available
-          if (result.data.length > 0) {
+          setTaskAttemptsInitialLoad(false);
+
+          // For background updates, preserve the selected attempt
+          if (isBackgroundUpdate && selectedAttempt) {
+            const updatedAttempt = result.data.find(
+              (a) => a.id === selectedAttempt.id
+            );
+            if (updatedAttempt) {
+              setSelectedAttempt(updatedAttempt);
+              return;
+            }
+          }
+
+          // Auto-select latest attempt for initial loads
+          if (result.data.length > 0 && !isBackgroundUpdate) {
             const latestAttempt = result.data.reduce((latest, current) =>
               new Date(current.created_at) > new Date(latest.created_at)
                 ? current
@@ -152,15 +190,21 @@ export function TaskDetailsPage() {
     } catch (err) {
       setError("Failed to load task attempts");
     } finally {
-      setTaskAttemptsLoading(false);
+      if (!isBackgroundUpdate) {
+        setTaskAttemptsLoading(false);
+      }
     }
   };
 
-  const fetchAttemptActivities = async (attemptId: string) => {
+  const fetchAttemptActivities = async (attemptId: string, isBackgroundUpdate = false) => {
     if (!task || !projectId) return;
 
     try {
-      setActivitiesLoading(true);
+      // Only show loading for user-initiated actions, not background polling
+      if (!isBackgroundUpdate) {
+        setActivitiesLoading(true);
+      }
+      
       const response = await makeAuthenticatedRequest(
         `/api/projects/${projectId}/tasks/${task.id}/attempts/${attemptId}/activities`
       );
@@ -177,7 +221,9 @@ export function TaskDetailsPage() {
     } catch (err) {
       setError("Failed to load attempt activities");
     } finally {
-      setActivitiesLoading(false);
+      if (!isBackgroundUpdate) {
+        setActivitiesLoading(false);
+      }
     }
   };
 
@@ -357,11 +403,7 @@ export function TaskDetailsPage() {
         <div className="flex gap-2">
           {isEditMode ? (
             <>
-              <Button
-                onClick={saveTaskChanges}
-                disabled={savingTask}
-                size="sm"
-              >
+              <Button onClick={saveTaskChanges} disabled={savingTask} size="sm">
                 {savingTask ? "Saving..." : "Save"}
               </Button>
               <Button onClick={cancelEdit} variant="outline" size="sm">
@@ -397,9 +439,7 @@ export function TaskDetailsPage() {
                       placeholder="Enter task title..."
                     />
                   ) : (
-                    <h2 className="text-lg font-semibold mt-1">
-                      {task.title}
-                    </h2>
+                    <h2 className="text-lg font-semibold mt-1">{task.title}</h2>
                   )}
                 </div>
 
@@ -500,9 +540,7 @@ export function TaskDetailsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="todo">To Do</SelectItem>
-                        <SelectItem value="inprogress">
-                          In Progress
-                        </SelectItem>
+                        <SelectItem value="inprogress">In Progress</SelectItem>
                         <SelectItem value="inreview">In Review</SelectItem>
                         <SelectItem value="done">Done</SelectItem>
                         <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -568,7 +606,7 @@ export function TaskDetailsPage() {
                   <Label className="text-xs text-muted-foreground mb-2 block">
                     Select Attempt
                   </Label>
-                  {taskAttemptsLoading ? (
+                  {taskAttemptsInitialLoad && taskAttemptsLoading ? (
                     <div className="text-center py-2 text-sm text-muted-foreground">
                       Loading...
                     </div>
@@ -674,9 +712,7 @@ export function TaskDetailsPage() {
                   {selectedAttempt.worktree_path}
                 </p>
                 {activitiesLoading ? (
-                  <div className="text-center py-4">
-                    Loading activities...
-                  </div>
+                  <div className="text-center py-4">Loading activities...</div>
                 ) : attemptActivities.length === 0 ? (
                   <div className="text-center py-4 text-muted-foreground">
                     No activities found
