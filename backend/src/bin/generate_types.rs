@@ -71,6 +71,8 @@ export {}
 
 export {}
 
+export {}
+
 export {}"#,
         bloop_backend::models::ApiResponse::<()>::decl(),
         bloop_backend::executor::ExecutorConfig::decl(),
@@ -80,6 +82,7 @@ export {}"#,
         bloop_backend::models::task::CreateTask::decl(),
         bloop_backend::models::task::TaskStatus::decl(),
         bloop_backend::models::task::Task::decl(),
+        bloop_backend::models::task::TaskWithAttemptStatus::decl(),
         bloop_backend::models::task::UpdateTask::decl(),
         bloop_backend::models::task_attempt::TaskAttemptStatus::decl(),
         bloop_backend::models::task_attempt::TaskAttempt::decl(),

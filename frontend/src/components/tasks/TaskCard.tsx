@@ -6,18 +6,10 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { KanbanCard } from '@/components/ui/shadcn-io/kanban'
-import { MoreHorizontal, Trash2, Edit } from 'lucide-react'
-import type { TaskStatus } from 'shared/types'
+import { MoreHorizontal, Trash2, Edit, Loader2 } from 'lucide-react'
+import type { TaskWithAttemptStatus } from 'shared/types'
 
-interface Task {
-  id: string
-  project_id: string
-  title: string
-  description: string | null
-  status: TaskStatus
-  created_at: string
-  updated_at: string
-}
+type Task = TaskWithAttemptStatus
 
 interface TaskCardProps {
   task: Task
@@ -46,6 +38,10 @@ export function TaskCard({ task, index, status, onEdit, onDelete, onViewDetails 
             </h4>
           </div>
           <div className="flex items-center space-x-1">
+            {/* In Progress Spinner */}
+            {task.has_in_progress_attempt && (
+              <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+            )}
             {/* Actions Menu */}
             <div 
               onPointerDown={(e) => e.stopPropagation()}

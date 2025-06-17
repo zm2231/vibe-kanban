@@ -8,18 +8,10 @@ import { TaskCreateDialog } from '@/components/tasks/TaskCreateDialog'
 import { TaskEditDialog } from '@/components/tasks/TaskEditDialog'
 import { TaskDetailsDialog } from '@/components/tasks/TaskDetailsDialog'
 import { TaskKanbanBoard } from '@/components/tasks/TaskKanbanBoard'
-import type { TaskStatus } from 'shared/types'
+import type { TaskStatus, TaskWithAttemptStatus } from 'shared/types'
 import type { DragEndEvent } from '@/components/ui/shadcn-io/kanban'
 
-interface Task {
-  id: string
-  project_id: string
-  title: string
-  description: string | null
-  status: TaskStatus
-  created_at: string
-  updated_at: string
-}
+type Task = TaskWithAttemptStatus
 
 interface Project {
   id: string

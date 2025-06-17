@@ -6,17 +6,9 @@ import {
   type DragEndEvent
 } from '@/components/ui/shadcn-io/kanban'
 import { TaskCard } from './TaskCard'
-import type { TaskStatus } from 'shared/types'
+import type { TaskStatus, TaskWithAttemptStatus } from 'shared/types'
 
-interface Task {
-  id: string
-  project_id: string
-  title: string
-  description: string | null
-  status: TaskStatus
-  created_at: string
-  updated_at: string
-}
+type Task = TaskWithAttemptStatus
 
 interface TaskKanbanBoardProps {
   tasks: Task[]

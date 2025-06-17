@@ -28,6 +28,19 @@ pub struct Task {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TaskWithAttemptStatus {
+    pub id: Uuid,
+    pub project_id: Uuid,
+    pub title: String,
+    pub description: Option<String>,
+    pub status: TaskStatus,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub has_in_progress_attempt: bool,
+}
+
 #[derive(Debug, Deserialize, TS)]
 #[ts(export)]
 pub struct CreateTask {
@@ -56,6 +69,51 @@ impl Task {
         )
         .fetch_all(pool)
         .await
+    }
+
+    pub async fn find_by_project_id_with_attempt_status(pool: &PgPool, project_id: Uuid) -> Result<Vec<TaskWithAttemptStatus>, sqlx::Error> {
+        let records = sqlx::query!(
+            r#"SELECT 
+                t.id, 
+                t.project_id, 
+                t.title, 
+                t.description, 
+                t.status as "status!: TaskStatus", 
+                t.created_at, 
+                t.updated_at,
+                CASE WHEN in_progress_attempts.task_id IS NOT NULL THEN true ELSE false END as "has_in_progress_attempt!"
+               FROM tasks t
+               LEFT JOIN (
+                   SELECT DISTINCT ta.task_id 
+                   FROM task_attempts ta
+                   INNER JOIN (
+                       SELECT task_attempt_id, MAX(created_at) as latest_created_at
+                       FROM task_attempt_activities
+                       GROUP BY task_attempt_id
+                   ) latest_activity ON ta.id = latest_activity.task_attempt_id
+                   INNER JOIN task_attempt_activities taa ON ta.id = taa.task_attempt_id 
+                       AND taa.created_at = latest_activity.latest_created_at
+                   WHERE taa.status = 'inprogress'
+               ) in_progress_attempts ON t.id = in_progress_attempts.task_id
+               WHERE t.project_id = $1 
+               ORDER BY t.created_at DESC"#,
+            project_id
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let tasks = records.into_iter().map(|record| TaskWithAttemptStatus {
+            id: record.id,
+            project_id: record.project_id,
+            title: record.title,
+            description: record.description,
+            status: record.status,
+            created_at: record.created_at,
+            updated_at: record.updated_at,
+            has_in_progress_attempt: record.has_in_progress_attempt,
+        }).collect();
+
+        Ok(tasks)
     }
 
     pub async fn find_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Self>, sqlx::Error> {

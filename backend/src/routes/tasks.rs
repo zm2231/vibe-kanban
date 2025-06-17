@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::models::{
     ApiResponse, 
     project::Project,
-    task::{Task, CreateTask, UpdateTask},
+    task::{Task, CreateTask, UpdateTask, TaskWithAttemptStatus},
     task_attempt::{TaskAttempt, CreateTaskAttempt, TaskAttemptStatus},
     task_attempt_activity::{TaskAttemptActivity, CreateTaskAttemptActivity}
 };
@@ -22,8 +22,8 @@ pub async fn get_project_tasks(
     _auth: AuthUser,
     Path(project_id): Path<Uuid>,
     Extension(pool): Extension<PgPool>
-) -> Result<ResponseJson<ApiResponse<Vec<Task>>>, StatusCode> {
-    match Task::find_by_project_id(&pool, project_id).await {
+) -> Result<ResponseJson<ApiResponse<Vec<TaskWithAttemptStatus>>>, StatusCode> {
+    match Task::find_by_project_id_with_attempt_status(&pool, project_id).await {
         Ok(tasks) => Ok(ResponseJson(ApiResponse {
             success: true,
             data: Some(tasks),
