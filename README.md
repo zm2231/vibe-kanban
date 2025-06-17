@@ -50,6 +50,12 @@ bloop/
 npm install
 ```
 
+4. Run SQLX migrations
+
+```bash
+cargo sqlx migrate run
+```
+
 ### Development
 
 ```bash
