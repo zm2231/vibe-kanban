@@ -1,17 +1,17 @@
 {
   "db_name": "SQLite",
-  "query": "INSERT INTO tasks (id, project_id, title, description, status) \n               VALUES ($1, $2, $3, $4, $5) \n               RETURNING id, project_id, title, description, status as \"status!: TaskStatus\", created_at, updated_at",
+  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks \n               WHERE id = $1 AND project_id = $2",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "id!: Uuid",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Blob"
       },
       {
-        "name": "project_id",
+        "name": "project_id!: Uuid",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Blob"
       },
       {
         "name": "title",
@@ -29,18 +29,18 @@
         "type_info": "Text"
       },
       {
-        "name": "created_at",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "updated_at",
+        "name": "updated_at!: DateTime<Utc>",
         "ordinal": 6,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 5
+      "Right": 2
     },
     "nullable": [
       true,
@@ -52,5 +52,5 @@
       false
     ]
   },
-  "hash": "c395009379487778ea43d0bdef7bd9d28f4755bcefb775ca036523aa88a4a3d8"
+  "hash": "73a58d62b2f18489ef5be9f4760f3bee51d6dedd550c3be9bf72e29b2203e63c"
 }

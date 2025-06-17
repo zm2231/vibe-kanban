@@ -1,12 +1,12 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, name, git_repo_path, created_at, updated_at FROM projects WHERE git_repo_path = $1 AND id != $2",
+  "query": "UPDATE projects SET name = $2, git_repo_path = $3 WHERE id = $1 RETURNING id as \"id!: Uuid\", name, git_repo_path, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "id!: Uuid",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Blob"
       },
       {
         "name": "name",
@@ -19,18 +19,18 @@
         "type_info": "Text"
       },
       {
-        "name": "created_at",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "updated_at",
+        "name": "updated_at!: DateTime<Utc>",
         "ordinal": 4,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 3
     },
     "nullable": [
       true,
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "b9345914c95a6c014776cf0cbb23dc6c34baaed0ac31f92283c612556727de9b"
+  "hash": "eeede8a732db5214bb9054d6c2b7655989102264949864e719610f12cbb4c0c0"
 }

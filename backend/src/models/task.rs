@@ -200,10 +200,11 @@ impl Task {
     }
 
     pub async fn delete(pool: &SqlitePool, id: Uuid, project_id: Uuid) -> Result<u64, sqlx::Error> {
+        let project_id_str = project_id.to_string();
         let result = sqlx::query!(
             "DELETE FROM tasks WHERE id = $1 AND project_id = $2",
             id,
-            project_id
+            project_id_str
         )
         .execute(pool)
         .await?;
@@ -215,10 +216,12 @@ impl Task {
         id: Uuid,
         project_id: Uuid,
     ) -> Result<bool, sqlx::Error> {
+        let id_str = id.to_string();
+        let project_id_str = project_id.to_string();
         let result = sqlx::query!(
             "SELECT id FROM tasks WHERE id = $1 AND project_id = $2",
-            id,
-            project_id
+            id_str,
+            project_id_str
         )
         .fetch_optional(pool)
         .await?;

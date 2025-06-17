@@ -121,9 +121,9 @@ impl Project {
     }
 
     pub async fn exists(pool: &SqlitePool, id: Uuid) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query!("SELECT id FROM projects WHERE id = $1", id)
-            .fetch_optional(pool)
+        let result = sqlx::query!("SELECT COUNT(*) as count FROM projects WHERE id = $1", id)
+            .fetch_one(pool)
             .await?;
-        Ok(result.is_some())
+        Ok(result.count > 0)
     }
 }

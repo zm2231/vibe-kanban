@@ -1,17 +1,17 @@
 {
   "db_name": "SQLite",
-  "query": "INSERT INTO task_attempts (id, task_id, worktree_path, base_commit, merge_commit, executor, stdout, stderr) \n               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) \n               RETURNING id, task_id, worktree_path, base_commit, merge_commit, executor, stdout, stderr, created_at, updated_at",
+  "query": "INSERT INTO task_attempts (id, task_id, worktree_path, base_commit, merge_commit, executor, stdout, stderr) \n               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) \n               RETURNING id as \"id!: Uuid\", task_id as \"task_id!: Uuid\", worktree_path, base_commit, merge_commit, executor, stdout, stderr, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "id!: Uuid",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Blob"
       },
       {
-        "name": "task_id",
+        "name": "task_id!: Uuid",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Blob"
       },
       {
         "name": "worktree_path",
@@ -44,12 +44,12 @@
         "type_info": "Text"
       },
       {
-        "name": "created_at",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 8,
         "type_info": "Text"
       },
       {
-        "name": "updated_at",
+        "name": "updated_at!: DateTime<Utc>",
         "ordinal": 9,
         "type_info": "Text"
       }
@@ -70,5 +70,5 @@
       false
     ]
   },
-  "hash": "0b55273631c697e19f622a14d9f7c81c7c669744f3c586397f8d08eb924cae73"
+  "hash": "bc2603a54513425d0ab6fab1f2f58845650e51b5270c60a428a85f9e219f0ede"
 }

@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO task_attempt_activities (id, task_attempt_id, status, note) \n               VALUES ($1, $2, $3, $4) \n               RETURNING id as \"id!: Uuid\", task_attempt_id as \"task_attempt_id!: Uuid\", status as \"status!: TaskAttemptStatus\", note, created_at as \"created_at!: DateTime<Utc>\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "task_attempt_id!: Uuid",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "status!: TaskAttemptStatus",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "note",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "57c2623fb47580045d2d3e89133b4f67fef8100a177b80a99045900262b7fd86"
+}

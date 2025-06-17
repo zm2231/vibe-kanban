@@ -1,12 +1,12 @@
 {
   "db_name": "SQLite",
-  "query": "INSERT INTO projects (id, name, git_repo_path) VALUES ($1, $2, $3) RETURNING id, name, git_repo_path, created_at, updated_at",
+  "query": "SELECT id as \"id!: Uuid\", name, git_repo_path, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\" FROM projects WHERE id = $1",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "id!: Uuid",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Blob"
       },
       {
         "name": "name",
@@ -19,18 +19,18 @@
         "type_info": "Text"
       },
       {
-        "name": "created_at",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "updated_at",
+        "name": "updated_at!: DateTime<Utc>",
         "ordinal": 4,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 1
     },
     "nullable": [
       true,
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "610b73abcc696879e1d402f8f94b23c3889eebd4fbeeacbc174bf43317ba83c7"
+  "hash": "0133ba2ace195776eaa714981cdf492d2eaa3dc97dc3379b549a3c4fb8309975"
 }
