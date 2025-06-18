@@ -1,4 +1,4 @@
-# Bloop Agent Guide
+# Agent Guide
 
 ## Commands
 
@@ -31,7 +31,7 @@
 ## Project Structure
 
 ```
-bloop/
+repo/
 ├── backend/               # Rust backend (Axum API)
 │   ├── Cargo.toml
 │   └── src/

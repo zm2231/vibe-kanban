@@ -1,11 +1,11 @@
 [package]
-name = "bloop-backend"
+name = "vibe-kanban"
 version = "0.1.0"
 edition = "2021"
-default-run = "bloop-backend"
+default-run = "vibe-kanban"
 
 [lib]
-name = "bloop_backend"
+name = "vibe_kanban"
 path = "src/lib.rs"
 
 [dependencies]

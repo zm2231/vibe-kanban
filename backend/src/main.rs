@@ -83,12 +83,7 @@ async fn serve_file(path: &str) -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("bloop_backend=debug".parse()?),
-        )
-        .init();
+    tracing_subscriber::fmt().init();
 
     // Create asset directory if it doesn't exist
     if !asset_dir().exists() {

@@ -1,21 +1,23 @@
-import { Link, useLocation } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft, FolderOpen } from 'lucide-react'
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, FolderOpen } from "lucide-react";
 
 export function Navbar() {
-  const location = useLocation()
-  const isHome = location.pathname === '/'
+  const location = useLocation();
+  const isHome = location.pathname === "/";
 
   return (
     <div className="border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-6">
-            <h2 className="text-lg font-semibold">Bloop</h2>
+            <h2 className="text-lg font-semibold">vibe-kanban</h2>
             <div className="flex items-center space-x-1">
               <Button
                 asChild
-                variant={location.pathname === '/projects' ? 'default' : 'ghost'}
+                variant={
+                  location.pathname === "/projects" ? "default" : "ghost"
+                }
                 size="sm"
               >
                 <Link to="/projects">
@@ -23,7 +25,6 @@ export function Navbar() {
                   Projects
                 </Link>
               </Button>
-
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -39,5 +40,5 @@ export function Navbar() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Navbar } from '@/components/layout/navbar'
-import { HomePage } from '@/pages/home'
 import { Projects } from '@/pages/projects'
 import { ProjectTasks } from '@/pages/project-tasks'
 import { TaskDetailsPage } from '@/pages/task-details'
@@ -14,9 +13,9 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       {showNavbar && <Navbar />}
-      <div className={showNavbar && location.pathname !== '/' ? "max-w-7xl mx-auto p-6 sm:p-8" : ""}>
+      <div className={showNavbar ? "max-w-7xl mx-auto p-6 sm:p-8" : ""}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<Projects />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:projectId" element={<Projects />} />
           <Route path="/projects/:projectId/tasks" element={<ProjectTasks />} />

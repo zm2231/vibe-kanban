@@ -5,7 +5,7 @@ Orchestration and visualisation over multiple coding agents.
 ## Project Structure
 
 ```
-bloop/
+repo/
 ├── backend/               # Rust backend (Axum API)
 │   ├── Cargo.toml
 │   └── src/
