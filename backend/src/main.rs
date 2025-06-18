@@ -138,9 +138,17 @@ async fn main() -> anyhow::Result<()> {
         .layer(Extension(app_state))
         .layer(CorsLayer::permissive());
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await?;
+    let port: u16 = if cfg!(debug_assertions) { 3001 } else { 0 }; // 0 = random port
 
-    tracing::info!("Server running on http://0.0.0.0:3001");
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+    let actual_port = listener.local_addr()?.port(); // get → 53427 (example)
+
+    tracing::info!("Server running on http://0.0.0.0:{actual_port}");
+
+    if !cfg!(debug_assertions) {
+        tracing::info!("Opening browser...");
+        open::that(format!("http://127.0.0.1:{actual_port}"))?;
+    }
 
     axum::serve(listener, app).await?;
 
