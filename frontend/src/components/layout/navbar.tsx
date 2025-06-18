@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FolderOpen } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Logo } from "@/components/logo";
 
 export function Navbar() {
   const location = useLocation();
@@ -12,7 +13,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-6">
-            <h2 className="text-lg font-semibold">vibe-kanban</h2>
+            <Logo />
             <div className="flex items-center space-x-1">
               <Button
                 asChild
