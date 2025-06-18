@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Folder, FolderOpen, File, AlertCircle, Home, ChevronUp } from 'lucide-react'
+import { Folder, FolderOpen, File, AlertCircle, Home, ChevronUp, Search } from 'lucide-react'
 import { makeRequest } from '@/lib/api'
 import { DirectoryEntry } from 'shared/types'
 
@@ -29,6 +29,14 @@ export function FolderPicker({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [manualPath, setManualPath] = useState(value)
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const filteredEntries = useMemo(() => {
+    if (!searchTerm.trim()) return entries
+    return entries.filter(entry => 
+      entry.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [entries, searchTerm])
 
   useEffect(() => {
     if (open) {
@@ -113,7 +121,7 @@ export function FolderPicker({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[600px] w-full h-[500px] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-[600px] w-full h-[700px] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -143,6 +151,20 @@ export function FolderPicker({
               >
                 Go
               </Button>
+            </div>
+          </div>
+
+          {/* Search input */}
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Search current directory:</div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Filter folders and files..."
+                className="pl-10"
+              />
             </div>
           </div>
 
@@ -190,13 +212,13 @@ export function FolderPicker({
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
-            ) : entries.length === 0 ? (
+            ) : filteredEntries.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground">
-                No folders found
+                {searchTerm.trim() ? 'No matches found' : 'No folders found'}
               </div>
             ) : (
               <div className="p-2">
-                {entries.map((entry, index) => (
+                {filteredEntries.map((entry, index) => (
                   <div
                     key={index}
                     className={`flex items-center space-x-2 p-2 rounded cursor-pointer hover:bg-accent ${
