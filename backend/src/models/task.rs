@@ -199,6 +199,24 @@ impl Task {
         .await
     }
 
+    pub async fn update_status(
+        pool: &SqlitePool,
+        id: Uuid,
+        project_id: Uuid,
+        status: TaskStatus,
+    ) -> Result<(), sqlx::Error> {
+        let status_value = status as TaskStatus;
+        sqlx::query!(
+            "UPDATE tasks SET status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND project_id = $2",
+            id,
+            project_id,
+            status_value
+        )
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn delete(pool: &SqlitePool, id: Uuid, project_id: Uuid) -> Result<u64, sqlx::Error> {
         let result = sqlx::query!(
             "DELETE FROM tasks WHERE id = $1 AND project_id = $2",
@@ -216,7 +234,7 @@ impl Task {
         project_id: Uuid,
     ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!(
-            "SELECT id FROM tasks WHERE id = $1 AND project_id = $2",
+            "SELECT id as \"id!: Uuid\" FROM tasks WHERE id = $1 AND project_id = $2",
             id,
             project_id
         )

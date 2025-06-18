@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::models::{
+    task::{Task, TaskStatus},
     task_attempt::{TaskAttempt, TaskAttemptStatus},
     task_attempt_activity::{CreateTaskAttemptActivity, TaskAttemptActivity},
 };
@@ -75,6 +76,27 @@ pub async fn execution_monitor(app_state: AppState) {
                     );
                 } else {
                     tracing::info!("Marked orphaned task attempt {} as paused", attempt_id);
+
+                    // Get task attempt and task to access task_id and project_id for status update
+                    if let Ok(Some(task_attempt)) =
+                        TaskAttempt::find_by_id(&app_state.db_pool, attempt_id).await
+                    {
+                        if let Ok(Some(task)) =
+                            Task::find_by_id(&app_state.db_pool, task_attempt.task_id).await
+                        {
+                            // Update task status to InReview
+                            if let Err(e) = Task::update_status(
+                                &app_state.db_pool,
+                                task.id,
+                                task.project_id,
+                                TaskStatus::InReview,
+                            )
+                            .await
+                            {
+                                tracing::error!("Failed to update task status to InReview for orphaned attempt: {}", e);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -171,6 +193,21 @@ pub async fn execution_monitor(app_state: AppState) {
                 tracing::error!("Failed to create in-progress activity: {}", e);
             }
 
+            // Update task status to InProgress - get task to access project_id
+            if let Ok(Some(task)) = Task::find_by_id(&app_state.db_pool, task_attempt.task_id).await
+            {
+                if let Err(e) = Task::update_status(
+                    &app_state.db_pool,
+                    task.id,
+                    task.project_id,
+                    TaskStatus::InProgress,
+                )
+                .await
+                {
+                    tracing::error!("Failed to update task status to InProgress: {}", e);
+                }
+            }
+
             tracing::info!(
                 "Started execution {} for task attempt {}",
                 execution_id,
@@ -252,6 +289,27 @@ pub async fn execution_monitor(app_state: AppState) {
                     "Task attempt {} set to paused after execution completion",
                     task_attempt_id
                 );
+
+                // Get task attempt and task to access task_id and project_id for status update
+                if let Ok(Some(task_attempt)) =
+                    TaskAttempt::find_by_id(&app_state.db_pool, task_attempt_id).await
+                {
+                    if let Ok(Some(task)) =
+                        Task::find_by_id(&app_state.db_pool, task_attempt.task_id).await
+                    {
+                        // Update task status to InReview
+                        if let Err(e) = Task::update_status(
+                            &app_state.db_pool,
+                            task.id,
+                            task.project_id,
+                            TaskStatus::InReview,
+                        )
+                        .await
+                        {
+                            tracing::error!("Failed to update task status to InReview for completed attempt: {}", e);
+                        }
+                    }
+                }
             }
         }
     }

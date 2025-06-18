@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::models::{
     project::Project,
-    task::{CreateTask, Task, TaskWithAttemptStatus, UpdateTask},
+    task::{CreateTask, Task, TaskStatus, TaskWithAttemptStatus, UpdateTask},
     task_attempt::{CreateTaskAttempt, TaskAttempt, TaskAttemptStatus, WorktreeDiff},
     task_attempt_activity::{CreateTaskAttemptActivity, TaskAttemptActivity},
     ApiResponse,
@@ -359,6 +359,12 @@ pub async fn stop_task_attempt(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
+    // Update task status to InReview
+    if let Err(e) = Task::update_status(&pool, task_id, project_id, TaskStatus::InReview).await {
+        tracing::error!("Failed to update task status to InReview: {}", e);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
     Ok(ResponseJson(ApiResponse {
         success: true,
         data: None,
@@ -399,11 +405,20 @@ pub async fn merge_task_attempt(
     }
 
     match TaskAttempt::merge_changes(&pool, attempt_id, task_id, project_id).await {
-        Ok(_merge_commit_id) => Ok(ResponseJson(ApiResponse {
-            success: true,
-            data: None,
-            message: Some("Changes merged successfully".to_string()),
-        })),
+        Ok(_merge_commit_id) => {
+            // Update task status to Done
+            if let Err(e) = Task::update_status(&pool, task_id, project_id, TaskStatus::Done).await
+            {
+                tracing::error!("Failed to update task status to Done after merge: {}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+
+            Ok(ResponseJson(ApiResponse {
+                success: true,
+                data: None,
+                message: Some("Changes merged successfully".to_string()),
+            }))
+        }
         Err(e) => {
             tracing::error!("Failed to merge task attempt {}: {}", attempt_id, e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
