@@ -1,4 +1,3 @@
-export { TaskCreateDialog } from './TaskCreateDialog'
-export { TaskEditDialog } from './TaskEditDialog'
+export { TaskFormDialog } from './TaskFormDialog'
 export { TaskCard } from './TaskCard'
 export { TaskKanbanBoard } from './TaskKanbanBoard'

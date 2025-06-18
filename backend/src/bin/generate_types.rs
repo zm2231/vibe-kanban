@@ -60,12 +60,18 @@ export {}
 
 export {}
 
+export {}
+
+export {}
+
 export {}"#,
         vibe_kanban::models::ApiResponse::<()>::decl(),
         vibe_kanban::executor::ExecutorConfig::decl(),
         vibe_kanban::models::project::CreateProject::decl(),
         vibe_kanban::models::project::Project::decl(),
         vibe_kanban::models::project::UpdateProject::decl(),
+        vibe_kanban::models::project::SearchResult::decl(),
+        vibe_kanban::models::project::SearchMatchType::decl(),
         vibe_kanban::models::task::CreateTask::decl(),
         vibe_kanban::models::task::TaskStatus::decl(),
         vibe_kanban::models::task::Task::decl(),

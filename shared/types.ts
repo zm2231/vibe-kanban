@@ -11,6 +11,10 @@ export type Project = { id: string, name: string, git_repo_path: string, created
 
 export type UpdateProject = { name: string | null, git_repo_path: string | null, };
 
+export type SearchResult = { path: string, is_file: boolean, match_type: SearchMatchType, };
+
+export type SearchMatchType = "FileName" | "DirectoryName" | "FullPath";
+
 export type CreateTask = { project_id: string, title: string, description: string | null, };
 
 export type TaskStatus = "todo" | "inprogress" | "inreview" | "done" | "cancelled";

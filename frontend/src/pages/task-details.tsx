@@ -3,8 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -15,6 +13,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, FileText } from "lucide-react";
 import { makeRequest } from "@/lib/api";
+import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
 import type {
   TaskStatus,
   TaskAttempt,
@@ -69,12 +68,7 @@ export function TaskDetailsPage() {
   const [stoppingAttempt, setStoppingAttempt] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Edit mode state
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editedTitle, setEditedTitle] = useState("");
-  const [editedDescription, setEditedDescription] = useState("");
-  const [editedStatus, setEditedStatus] = useState<TaskStatus>("todo");
-  const [savingTask, setSavingTask] = useState(false);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
 
   // Check if the selected attempt is currently running (latest activity is "inprogress" or "init")
   const isAttemptRunning =
@@ -106,11 +100,6 @@ export function TaskDetailsPage() {
   useEffect(() => {
     if (task) {
       fetchTaskAttempts(task.id);
-      // Initialize edit state with current task values
-      setEditedTitle(task.title);
-      setEditedDescription(task.description || "");
-      setEditedStatus(task.status);
-      setIsEditMode(false);
     }
   }, [task]);
 
@@ -232,11 +221,12 @@ export function TaskDetailsPage() {
     fetchAttemptActivities(attempt.id);
   };
 
-  const saveTaskChanges = async () => {
+
+
+  const handleUpdateTaskFromDialog = async (title: string, description: string, status: TaskStatus) => {
     if (!task || !projectId) return;
 
     try {
-      setSavingTask(true);
       const response = await makeRequest(
         `/api/projects/${projectId}/tasks/${task.id}`,
         {
@@ -245,39 +235,27 @@ export function TaskDetailsPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            title: editedTitle,
-            description: editedDescription || null,
-            status: editedStatus,
+            title,
+            description: description || null,
+            status,
           }),
         }
       );
 
       if (response.ok) {
-        setIsEditMode(false);
         // Update the local task state
         setTask({
           ...task,
-          title: editedTitle,
-          description: editedDescription || null,
-          status: editedStatus,
+          title,
+          description: description || null,
+          status,
         });
       } else {
         setError("Failed to save task changes");
       }
     } catch (err) {
       setError("Failed to save task changes");
-    } finally {
-      setSavingTask(false);
     }
-  };
-
-  const cancelEdit = () => {
-    if (task) {
-      setEditedTitle(task.title);
-      setEditedDescription(task.description || "");
-      setEditedStatus(task.status);
-    }
-    setIsEditMode(false);
   };
 
   const createNewAttempt = async () => {
@@ -396,29 +374,16 @@ export function TaskDetailsPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Tasks
           </Button>
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? "Edit Task" : "Task Details"}
-          </h1>
+          <h1 className="text-2xl font-bold">Task Details</h1>
         </div>
         <div className="flex gap-2">
-          {isEditMode ? (
-            <>
-              <Button onClick={saveTaskChanges} disabled={savingTask} size="sm">
-                {savingTask ? "Saving..." : "Save"}
-              </Button>
-              <Button onClick={cancelEdit} variant="outline" size="sm">
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => setIsEditMode(true)}
-              variant="outline"
-              size="sm"
-            >
-              Edit
-            </Button>
-          )}
+          <Button
+            onClick={() => setIsTaskDialogOpen(true)}
+            variant="outline"
+            size="sm"
+          >
+            Edit Task
+          </Button>
         </div>
       </div>
 
@@ -431,40 +396,22 @@ export function TaskDetailsPage() {
               <div className="space-y-4">
                 <div>
                   <Label className="text-sm font-medium">Title</Label>
-                  {isEditMode ? (
-                    <Input
-                      value={editedTitle}
-                      onChange={(e) => setEditedTitle(e.target.value)}
-                      className="mt-1"
-                      placeholder="Enter task title..."
-                    />
-                  ) : (
-                    <h2 className="text-lg font-semibold mt-1">{task.title}</h2>
-                  )}
+                  <h2 className="text-lg font-semibold mt-1">{task.title}</h2>
                 </div>
 
                 <div>
                   <Label className="text-sm font-medium">Description</Label>
-                  {isEditMode ? (
-                    <Textarea
-                      value={editedDescription}
-                      onChange={(e) => setEditedDescription(e.target.value)}
-                      className="mt-1 min-h-[100px]"
-                      placeholder="Enter task description..."
-                    />
-                  ) : (
-                    <div className="mt-1 p-3 bg-gray-50 rounded-md min-h-[60px]">
-                      {task.description ? (
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                          {task.description}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-500 italic">
-                          No description provided
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-1 p-3 bg-gray-50 rounded-md min-h-[60px]">
+                    {task.description ? (
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {task.description}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">
+                        No description provided
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -528,41 +475,21 @@ export function TaskDetailsPage() {
                   <Label className="text-xs text-muted-foreground">
                     Status
                   </Label>
-                  {isEditMode ? (
-                    <Select
-                      value={editedStatus}
-                      onValueChange={(value) =>
-                        setEditedStatus(value as TaskStatus)
-                      }
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todo">To Do</SelectItem>
-                        <SelectItem value="inprogress">In Progress</SelectItem>
-                        <SelectItem value="inreview">In Review</SelectItem>
-                        <SelectItem value="done">Done</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div
-                      className={`mt-1 px-2 py-1 rounded-full text-xs font-medium w-fit ${
-                        task.status === "todo"
-                          ? "bg-gray-100 text-gray-800"
-                          : task.status === "inprogress"
-                          ? "bg-blue-100 text-blue-800"
-                          : task.status === "inreview"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : task.status === "done"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {statusLabels[task.status]}
-                    </div>
-                  )}
+                  <div
+                    className={`mt-1 px-2 py-1 rounded-full text-xs font-medium w-fit ${
+                      task.status === "todo"
+                        ? "bg-gray-100 text-gray-800"
+                        : task.status === "inprogress"
+                        ? "bg-blue-100 text-blue-800"
+                        : task.status === "inreview"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : task.status === "done"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {statusLabels[task.status]}
+                  </div>
                 </div>
 
                 <Separator />
@@ -769,6 +696,14 @@ export function TaskDetailsPage() {
           )}
         </div>
       </div>
+
+      <TaskFormDialog
+        isOpen={isTaskDialogOpen}
+        onOpenChange={setIsTaskDialogOpen}
+        task={task}
+        projectId={projectId}
+        onUpdateTask={handleUpdateTaskFromDialog}
+      />
     </div>
   );
 }

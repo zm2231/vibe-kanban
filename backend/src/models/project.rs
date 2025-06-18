@@ -32,6 +32,22 @@ pub struct UpdateProject {
     pub git_repo_path: Option<String>,
 }
 
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub struct SearchResult {
+    pub path: String,
+    pub is_file: bool,
+    pub match_type: SearchMatchType,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub enum SearchMatchType {
+    FileName,
+    DirectoryName,
+    FullPath,
+}
+
 impl Project {
     pub async fn find_all(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as!(

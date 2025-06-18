@@ -1,15 +1,16 @@
 use axum::{
-    extract::{Extension, Path},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::Json as ResponseJson,
     routing::get,
     Json, Router,
 };
 use sqlx::SqlitePool;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::models::{
-    project::{CreateProject, Project, UpdateProject},
+    project::{CreateProject, Project, SearchMatchType, SearchResult, UpdateProject},
     ApiResponse,
 };
 
@@ -240,6 +241,143 @@ pub async fn delete_project(
     }
 }
 
+pub async fn search_project_files(
+    Path(id): Path<Uuid>,
+    Query(params): Query<HashMap<String, String>>,
+    Extension(pool): Extension<SqlitePool>,
+) -> Result<ResponseJson<ApiResponse<Vec<SearchResult>>>, StatusCode> {
+    let query = match params.get("q") {
+        Some(q) if !q.trim().is_empty() => q.trim(),
+        _ => {
+            return Ok(ResponseJson(ApiResponse {
+                success: false,
+                data: None,
+                message: Some("Query parameter 'q' is required and cannot be empty".to_string()),
+            }));
+        }
+    };
+
+    // Check if project exists
+    let project = match Project::find_by_id(&pool, id).await {
+        Ok(Some(project)) => project,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            tracing::error!("Failed to fetch project: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Search files in the project repository
+    match search_files_in_repo(&project.git_repo_path, query).await {
+        Ok(results) => Ok(ResponseJson(ApiResponse {
+            success: true,
+            data: Some(results),
+            message: None,
+        })),
+        Err(e) => {
+            tracing::error!("Failed to search files: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn search_files_in_repo(
+    repo_path: &str,
+    query: &str,
+) -> Result<Vec<SearchResult>, Box<dyn std::error::Error + Send + Sync>> {
+    use std::path::Path;
+
+    let repo_path = Path::new(repo_path);
+
+    if !repo_path.exists() {
+        return Err("Repository path does not exist".into());
+    }
+
+    let mut results = Vec::new();
+    let query_lower = query.to_lowercase();
+
+    // Recursively search through the repository
+    fn walk_dir(
+        dir: &Path,
+        repo_root: &Path,
+        query: &str,
+        results: &mut Vec<SearchResult>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if dir.file_name().map_or(false, |name| name == ".git") {
+            return Ok(());
+        }
+
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            // Skip .git directories
+            if path.is_dir() && path.file_name().map_or(false, |name| name == ".git") {
+                continue;
+            }
+
+            let relative_path = path.strip_prefix(repo_root)?;
+            let relative_path_str = relative_path.to_string_lossy().to_lowercase();
+
+            let file_name = path
+                .file_name()
+                .map(|name| name.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+
+            // Check for matches
+            if file_name.contains(query) {
+                results.push(SearchResult {
+                    path: relative_path.to_string_lossy().to_string(),
+                    is_file: path.is_file(),
+                    match_type: SearchMatchType::FileName,
+                });
+            } else if relative_path_str.contains(query) {
+                // Check if it's a directory name match or full path match
+                let match_type = if path
+                    .parent()
+                    .and_then(|p| p.file_name())
+                    .map(|name| name.to_string_lossy().to_lowercase())
+                    .unwrap_or_default()
+                    .contains(query)
+                {
+                    SearchMatchType::DirectoryName
+                } else {
+                    SearchMatchType::FullPath
+                };
+
+                results.push(SearchResult {
+                    path: relative_path.to_string_lossy().to_string(),
+                    is_file: path.is_file(),
+                    match_type,
+                });
+            }
+
+            if path.is_dir() {
+                walk_dir(&path, repo_root, query, results)?;
+            }
+        }
+        Ok(())
+    }
+
+    walk_dir(repo_path, repo_path, &query_lower, &mut results)?;
+
+    // Sort results by priority: FileName > DirectoryName > FullPath
+    results.sort_by(|a, b| {
+        use SearchMatchType::*;
+        let priority = |match_type: &SearchMatchType| match match_type {
+            FileName => 0,
+            DirectoryName => 1,
+            FullPath => 2,
+        };
+
+        priority(&a.match_type)
+            .cmp(&priority(&b.match_type))
+            .then_with(|| a.path.cmp(&b.path))
+    });
+
+    Ok(results)
+}
+
 pub fn projects_router() -> Router {
     Router::new()
         .route("/projects", get(get_projects).post(create_project))
@@ -247,6 +385,7 @@ pub fn projects_router() -> Router {
             "/projects/:id",
             get(get_project).put(update_project).delete(delete_project),
         )
+        .route("/projects/:id/search", get(search_project_files))
 }
 
 #[cfg(test)]

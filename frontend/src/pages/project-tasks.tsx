@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Plus } from "lucide-react";
 import { makeRequest } from "@/lib/api";
-import { TaskCreateDialog } from "@/components/tasks/TaskCreateDialog";
-import { TaskEditDialog } from "@/components/tasks/TaskEditDialog";
+import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
 
 import { TaskKanbanBoard } from "@/components/tasks/TaskKanbanBoard";
 import type { TaskStatus, TaskWithAttemptStatus } from "shared/types";
@@ -34,9 +33,8 @@ export function ProjectTasks() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -177,7 +175,12 @@ export function ProjectTasks() {
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
-    setIsEditDialogOpen(true);
+    setIsTaskDialogOpen(true);
+  };
+
+  const handleCreateNewTask = () => {
+    setEditingTask(null);
+    setIsTaskDialogOpen(true);
   };
 
   const handleViewTaskDetails = (task: Task) => {
@@ -266,16 +269,19 @@ export function ProjectTasks() {
           </div>
         </div>
 
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={handleCreateNewTask}>
           <Plus className="h-4 w-4 mr-2" />
           Add Task
         </Button>
       </div>
 
-      <TaskCreateDialog
-        isOpen={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
+      <TaskFormDialog
+        isOpen={isTaskDialogOpen}
+        onOpenChange={setIsTaskDialogOpen}
+        task={editingTask}
+        projectId={projectId}
         onCreateTask={handleCreateTask}
+        onUpdateTask={handleUpdateTask}
       />
 
       {/* Tasks View */}
@@ -287,7 +293,7 @@ export function ProjectTasks() {
             </p>
             <Button
               className="mt-4"
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={handleCreateNewTask}
             >
               <Plus className="h-4 w-4 mr-2" />
               Create First Task
@@ -304,12 +310,7 @@ export function ProjectTasks() {
         />
       )}
 
-      <TaskEditDialog
-        isOpen={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        task={editingTask}
-        onUpdateTask={handleUpdateTask}
-      />
+
     </div>
   );
 }
