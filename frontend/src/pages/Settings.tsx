@@ -78,6 +78,12 @@ export function Settings() {
     setConfig((prev: Config | null) => prev ? { ...prev, ...updates } : null);
   };
 
+  const resetDisclaimer = async () => {
+    if (!config) return;
+    
+    updateConfig({ disclaimer_acknowledged: false });
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -179,6 +185,40 @@ export function Settings() {
                 </Select>
                 <p className="text-sm text-muted-foreground">
                   Choose the default executor for running tasks.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Safety & Disclaimers</CardTitle>
+              <CardDescription>
+                Manage safety warnings and acknowledgments.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Disclaimer Status</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {config.disclaimer_acknowledged 
+                        ? "You have acknowledged the safety disclaimer." 
+                        : "The safety disclaimer has not been acknowledged."}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={resetDisclaimer}
+                    variant="outline"
+                    size="sm"
+                    disabled={!config.disclaimer_acknowledged}
+                  >
+                    Reset Disclaimer
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Resetting the disclaimer will require you to acknowledge the safety warning again on next app start.
                 </p>
               </div>
             </CardContent>
