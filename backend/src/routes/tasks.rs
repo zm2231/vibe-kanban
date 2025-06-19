@@ -479,7 +479,11 @@ pub async fn open_task_attempt_in_editor(
         .spawn()
     {
         Ok(_) => {
-            tracing::info!("Opened VSCode for task attempt {} at path: {}", attempt_id, attempt.worktree_path);
+            tracing::info!(
+                "Opened VSCode for task attempt {} at path: {}",
+                attempt_id,
+                attempt.worktree_path
+            );
             Ok(ResponseJson(ApiResponse {
                 success: true,
                 data: None,
