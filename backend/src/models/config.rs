@@ -8,6 +8,7 @@ use ts_rs::TS;
 pub struct Config {
     pub theme: ThemeMode,
     pub executor: ExecutorConfig,
+    pub disclaimer_acknowledged: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -24,6 +25,7 @@ impl Default for Config {
         Self {
             theme: ThemeMode::System,
             executor: ExecutorConfig::Claude,
+            disclaimer_acknowledged: false,
         }
     }
 }
