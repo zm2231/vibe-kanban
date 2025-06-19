@@ -286,6 +286,7 @@ async fn search_files_in_repo(
     repo_path: &str,
     query: &str,
 ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error + Send + Sync>> {
+    use ignore::WalkBuilder;
     use std::path::Path;
 
     let repo_path = Path::new(repo_path);
@@ -297,70 +298,64 @@ async fn search_files_in_repo(
     let mut results = Vec::new();
     let query_lower = query.to_lowercase();
 
-    // Recursively search through the repository
-    fn walk_dir(
-        dir: &Path,
-        repo_root: &Path,
-        query: &str,
-        results: &mut Vec<SearchResult>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        if dir.file_name().map_or(false, |name| name == ".git") {
-            return Ok(());
+    // Use ignore::WalkBuilder to respect gitignore files
+    let walker = WalkBuilder::new(repo_path)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .hidden(false)
+        .build();
+
+    for result in walker {
+        let entry = result?;
+        let path = entry.path();
+        
+        // Skip the root directory itself
+        if path == repo_path {
+            continue;
         }
 
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
+        let relative_path = path.strip_prefix(repo_path)?;
+        
+        // Skip .git directory and its contents
+        if relative_path.components().any(|component| component.as_os_str() == ".git") {
+            continue;
+        }
+        let relative_path_str = relative_path.to_string_lossy().to_lowercase();
 
-            // Skip .git directories
-            if path.is_dir() && path.file_name().map_or(false, |name| name == ".git") {
-                continue;
-            }
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
 
-            let relative_path = path.strip_prefix(repo_root)?;
-            let relative_path_str = relative_path.to_string_lossy().to_lowercase();
-
-            let file_name = path
-                .file_name()
+        // Check for matches
+        if file_name.contains(&query_lower) {
+            results.push(SearchResult {
+                path: relative_path.to_string_lossy().to_string(),
+                is_file: path.is_file(),
+                match_type: SearchMatchType::FileName,
+            });
+        } else if relative_path_str.contains(&query_lower) {
+            // Check if it's a directory name match or full path match
+            let match_type = if path
+                .parent()
+                .and_then(|p| p.file_name())
                 .map(|name| name.to_string_lossy().to_lowercase())
-                .unwrap_or_default();
+                .unwrap_or_default()
+                .contains(&query_lower)
+            {
+                SearchMatchType::DirectoryName
+            } else {
+                SearchMatchType::FullPath
+            };
 
-            // Check for matches
-            if file_name.contains(query) {
-                results.push(SearchResult {
-                    path: relative_path.to_string_lossy().to_string(),
-                    is_file: path.is_file(),
-                    match_type: SearchMatchType::FileName,
-                });
-            } else if relative_path_str.contains(query) {
-                // Check if it's a directory name match or full path match
-                let match_type = if path
-                    .parent()
-                    .and_then(|p| p.file_name())
-                    .map(|name| name.to_string_lossy().to_lowercase())
-                    .unwrap_or_default()
-                    .contains(query)
-                {
-                    SearchMatchType::DirectoryName
-                } else {
-                    SearchMatchType::FullPath
-                };
-
-                results.push(SearchResult {
-                    path: relative_path.to_string_lossy().to_string(),
-                    is_file: path.is_file(),
-                    match_type,
-                });
-            }
-
-            if path.is_dir() {
-                walk_dir(&path, repo_root, query, results)?;
-            }
+            results.push(SearchResult {
+                path: relative_path.to_string_lossy().to_string(),
+                is_file: path.is_file(),
+                match_type,
+            });
         }
-        Ok(())
     }
-
-    walk_dir(repo_path, repo_path, &query_lower, &mut results)?;
 
     // Sort results by priority: FileName > DirectoryName > FullPath
     results.sort_by(|a, b| {
