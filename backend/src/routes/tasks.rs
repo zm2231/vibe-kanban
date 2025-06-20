@@ -6,7 +6,8 @@ use axum::{
     Json, Router,
 };
 use sqlx::SqlitePool;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::models::{
@@ -453,7 +454,7 @@ pub async fn merge_task_attempt(
 pub async fn open_task_attempt_in_editor(
     Path((project_id, task_id, attempt_id)): Path<(Uuid, Uuid, Uuid)>,
     Extension(pool): Extension<SqlitePool>,
-    Extension(config): Extension<Arc<Mutex<crate::models::config::Config>>>,
+    Extension(config): Extension<Arc<RwLock<crate::models::config::Config>>>,
 ) -> Result<ResponseJson<ApiResponse<()>>, StatusCode> {
     // Verify task attempt exists and belongs to the correct task
     match TaskAttempt::exists_for_task(&pool, attempt_id, task_id, project_id).await {
@@ -477,7 +478,7 @@ pub async fn open_task_attempt_in_editor(
 
     // Get editor command from config
     let editor_command = {
-        let config_guard = config.lock().unwrap();
+        let config_guard = config.read().await;
         config_guard.editor.get_command()
     };
 
