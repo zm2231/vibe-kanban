@@ -1,0 +1,16 @@
+{
+  "name": "vibe-kanban",
+  "private": false,
+  "version": "0.0.3",
+  "main": "index.js",
+  "bin": {
+    "my-npx-cli": "bin/cli.js"
+  },
+  "keywords": [],
+  "author": "bloop",
+  "license": "",
+  "description": "NPX wrapper around vibe-kanban",
+  "files": [
+    "dist"
+  ]
+}
