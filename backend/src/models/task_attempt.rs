@@ -10,7 +10,6 @@ use uuid::Uuid;
 
 use super::project::Project;
 use super::task::Task;
-use crate::execution_monitor::ExecutionType;
 use crate::executor::ExecutorConfig;
 
 #[derive(Debug)]
@@ -19,7 +18,6 @@ pub enum TaskAttemptError {
     Git(GitError),
     TaskNotFound,
     ProjectNotFound,
-    GitOutOfSync(anyhow::Error),
 }
 
 impl std::fmt::Display for TaskAttemptError {
@@ -29,7 +27,6 @@ impl std::fmt::Display for TaskAttemptError {
             TaskAttemptError::Git(e) => write!(f, "Git error: {}", e),
             TaskAttemptError::TaskNotFound => write!(f, "Task not found"),
             TaskAttemptError::ProjectNotFound => write!(f, "Project not found"),
-            TaskAttemptError::GitOutOfSync(e) => write!(f, "Git out of sync: {}", e),
         }
     }
 }
@@ -70,7 +67,6 @@ pub struct TaskAttempt {
     pub task_id: Uuid, // Foreign key to Task
     pub worktree_path: String,
     pub merge_commit: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub executor: Option<String>, // Name of the executor to use
     pub stdout: Option<String>,
     pub stderr: Option<String>,
@@ -90,8 +86,7 @@ pub struct CreateTaskAttempt {
 #[derive(Debug, Deserialize, TS)]
 #[ts(export)]
 pub struct UpdateTaskAttempt {
-    pub worktree_path: Option<String>,
-    pub merge_commit: Option<String>,
+    // Currently no updateable fields, but keeping struct for API compatibility
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -242,24 +237,6 @@ impl TaskAttempt {
             // Default to echo executor
             ExecutorConfig::Echo.create_executor()
         }
-    }
-
-    /// Update stdout and stderr for this task attempt
-    pub async fn update_output(
-        pool: &SqlitePool,
-        id: Uuid,
-        stdout: Option<&str>,
-        stderr: Option<&str>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE task_attempts SET stdout = $1, stderr = $2, updated_at = datetime('now') WHERE id = $3",
-            stdout,
-            stderr,
-            id
-        )
-        .execute(pool)
-        .await?;
-        Ok(())
     }
 
     /// Append to stdout and stderr for this task attempt (for streaming updates)
@@ -593,9 +570,7 @@ impl TaskAttempt {
                 execution_id,
                 crate::execution_monitor::RunningExecution {
                     task_attempt_id: attempt_id,
-                    execution_type: ExecutionType::CodingAgent,
                     child,
-                    started_at: chrono::Utc::now(),
                 },
             )
             .await;

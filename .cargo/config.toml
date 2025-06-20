@@ -1,0 +1,3 @@
+[env]
+# Set macOS deployment target to avoid linker warnings
+MACOSX_DEPLOYMENT_TARGET = "15.1"

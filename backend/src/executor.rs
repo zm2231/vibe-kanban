@@ -32,20 +32,9 @@ impl From<sqlx::Error> for ExecutorError {
     }
 }
 
-/// Result of executing a command
-#[derive(Debug)]
-pub struct ExecutionResult {
-    pub stdout: String,
-    pub stderr: String,
-    pub exit_code: Option<i32>,
-}
-
 /// Trait for defining CLI commands that can be executed for task attempts
 #[async_trait]
 pub trait Executor: Send + Sync {
-    /// Get the unique identifier for this executor type
-    fn executor_type(&self) -> &'static str;
-
     /// Spawn the command for a given task attempt
     async fn spawn(
         &self,
@@ -83,60 +72,6 @@ pub trait Executor: Send + Sync {
 
         Ok(child)
     }
-
-    /// Execute the command and capture output, then store in database (for backward compatibility)
-    async fn execute(
-        &self,
-        pool: &sqlx::SqlitePool,
-        task_id: Uuid,
-        attempt_id: Uuid,
-        worktree_path: &str,
-    ) -> Result<ExecutionResult, ExecutorError> {
-        use crate::models::task_attempt::TaskAttempt;
-        use tokio::io::AsyncReadExt;
-
-        let mut child = self.spawn(pool, task_id, worktree_path).await?;
-
-        // Take stdout and stderr pipes
-        let mut stdout = child
-            .stdout
-            .take()
-            .unwrap_or_else(|| panic!("Failed to take stdout from child process"));
-        let mut stderr = child
-            .stderr
-            .take()
-            .unwrap_or_else(|| panic!("Failed to take stderr from child process"));
-
-        // Read stdout and stderr concurrently
-        let mut stdout_buf = String::new();
-        let mut stderr_buf = String::new();
-
-        let (stdout_result, stderr_result, exit_result) = tokio::join!(
-            stdout.read_to_string(&mut stdout_buf),
-            stderr.read_to_string(&mut stderr_buf),
-            child.wait()
-        );
-
-        // Handle potential errors
-        stdout_result.map_err(ExecutorError::SpawnFailed)?;
-        stderr_result.map_err(ExecutorError::SpawnFailed)?;
-        let exit_status = exit_result.map_err(ExecutorError::SpawnFailed)?;
-
-        let result = ExecutionResult {
-            stdout: stdout_buf,
-            stderr: stderr_buf,
-            exit_code: exit_status.code(),
-        };
-
-        // Store output in database
-        TaskAttempt::update_output(pool, attempt_id, Some(&result.stdout), Some(&result.stderr))
-            .await?;
-
-        Ok(result)
-    }
-
-    /// Get a human-readable description of what this executor does
-    fn description(&self) -> &'static str;
 }
 
 /// Configuration for different executor types

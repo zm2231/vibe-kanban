@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use git2::Repository;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -13,18 +12,9 @@ use crate::models::{
 };
 
 #[derive(Debug)]
-pub enum ExecutionType {
-    SetupScript,
-    CodingAgent,
-    DevServer,
-}
-
-#[derive(Debug)]
 pub struct RunningExecution {
     pub task_attempt_id: Uuid,
-    pub execution_type: ExecutionType,
     pub child: tokio::process::Child,
-    pub started_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,11 +42,6 @@ impl AppState {
         executions
             .values()
             .any(|exec| exec.task_attempt_id == attempt_id)
-    }
-
-    pub async fn get_running_execution_ids(&self) -> Vec<Uuid> {
-        let executions = self.running_executions.lock().await;
-        executions.keys().copied().collect()
     }
 
     pub async fn get_running_executions_for_monitor(&self) -> Vec<(Uuid, Uuid, bool, Option<i32>)> {
@@ -104,11 +89,6 @@ impl AppState {
         executions.insert(execution_id, execution);
     }
 
-    pub async fn remove_running_execution(&self, execution_id: Uuid) -> Option<RunningExecution> {
-        let mut executions = self.running_executions.lock().await;
-        executions.remove(&execution_id)
-    }
-
     pub async fn stop_running_execution(
         &self,
         attempt_id: Uuid,
@@ -148,20 +128,6 @@ impl AppState {
     pub async fn get_sound_alerts_enabled(&self) -> bool {
         let config = self.config.read().await;
         config.sound_alerts
-    }
-
-    pub async fn get_config(&self) -> crate::models::config::Config {
-        let config = self.config.read().await;
-        config.clone()
-    }
-
-    // Config setters
-    pub async fn update_config<F>(&self, update_fn: F)
-    where
-        F: FnOnce(&mut crate::models::config::Config),
-    {
-        let mut config = self.config.write().await;
-        update_fn(&mut config);
     }
 }
 

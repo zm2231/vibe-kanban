@@ -10,10 +10,6 @@ pub struct AmpExecutor;
 
 #[async_trait]
 impl Executor for AmpExecutor {
-    fn executor_type(&self) -> &'static str {
-        "amp"
-    }
-
     async fn spawn(
         &self,
         pool: &sqlx::SqlitePool,
@@ -54,9 +50,5 @@ impl Executor for AmpExecutor {
         }
 
         Ok(child)
-    }
-
-    fn description(&self) -> &'static str {
-        "Executes tasks using Claude CLI for AI-powered code assistance"
     }
 }

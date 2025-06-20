@@ -59,22 +59,6 @@ pub struct UpdateTask {
 }
 
 impl Task {
-    pub async fn find_by_project_id(
-        pool: &SqlitePool,
-        project_id: Uuid,
-    ) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as!(
-            Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
-               FROM tasks 
-               WHERE project_id = $1 
-               ORDER BY created_at DESC"#,
-            project_id
-        )
-        .fetch_all(pool)
-        .await
-    }
-
     pub async fn find_by_project_id_with_attempt_status(
         pool: &SqlitePool,
         project_id: Uuid,

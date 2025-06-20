@@ -10,10 +10,6 @@ pub struct ClaudeExecutor;
 
 #[async_trait]
 impl Executor for ClaudeExecutor {
-    fn executor_type(&self) -> &'static str {
-        "claude"
-    }
-
     async fn spawn(
         &self,
         pool: &sqlx::SqlitePool,
@@ -50,9 +46,5 @@ impl Executor for ClaudeExecutor {
             .map_err(ExecutorError::SpawnFailed)?;
 
         Ok(child)
-    }
-
-    fn description(&self) -> &'static str {
-        "Executes tasks using Claude CLI for AI-powered code assistance"
     }
 }

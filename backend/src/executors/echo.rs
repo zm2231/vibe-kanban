@@ -10,10 +10,6 @@ pub struct EchoExecutor;
 
 #[async_trait]
 impl Executor for EchoExecutor {
-    fn executor_type(&self) -> &'static str {
-        "echo"
-    }
-
     async fn spawn(
         &self,
         pool: &sqlx::SqlitePool,
@@ -52,9 +48,5 @@ echo "Task completed: {}""#,
             .map_err(ExecutorError::SpawnFailed)?;
 
         Ok(child)
-    }
-
-    fn description(&self) -> &'static str {
-        "Demonstrates streaming output with a multi-line shell script"
     }
 }
