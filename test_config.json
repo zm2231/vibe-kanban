@@ -1,8 +1,0 @@
-{
-  "theme": "dark",
-  "executor": {
-    "type": "claude"
-  },
-  "disclaimer_acknowledged": true,
-  "sound_alerts": true
-}
