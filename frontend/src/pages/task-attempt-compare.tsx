@@ -2,9 +2,30 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, ChevronDown, ChevronUp, RefreshCw, GitBranch } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ArrowLeft,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  GitBranch,
+  Trash2,
+} from "lucide-react";
 import { makeRequest } from "@/lib/api";
-import type { WorktreeDiff, DiffChunkType, DiffChunk, BranchStatus } from "shared/types";
+import type {
+  WorktreeDiff,
+  DiffChunkType,
+  DiffChunk,
+  BranchStatus,
+} from "shared/types";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -29,7 +50,11 @@ export function TaskAttemptComparePage() {
   const [rebasing, setRebasing] = useState(false);
   const [mergeSuccess, setMergeSuccess] = useState(false);
   const [rebaseSuccess, setRebaseSuccess] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set()
+  );
+  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (projectId && taskId && attemptId) {
@@ -102,7 +127,7 @@ export function TaskAttemptComparePage() {
       const response = await makeRequest(
         `/api/projects/${projectId}/tasks/${taskId}/attempts/${attemptId}/merge`,
         {
-          method: 'POST',
+          method: "POST",
         }
       );
 
@@ -134,7 +159,7 @@ export function TaskAttemptComparePage() {
       const response = await makeRequest(
         `/api/projects/${projectId}/tasks/${taskId}/attempts/${attemptId}/rebase`,
         {
-          method: 'POST',
+          method: "POST",
         }
       );
 
@@ -160,13 +185,13 @@ export function TaskAttemptComparePage() {
 
   const getChunkClassName = (chunkType: DiffChunkType) => {
     const baseClass = "font-mono text-sm whitespace-pre px-3 py-1";
-    
+
     switch (chunkType) {
-      case 'Insert':
+      case "Insert":
         return `${baseClass} bg-green-50 text-green-800 border-l-2 border-green-400`;
-      case 'Delete':
+      case "Delete":
         return `${baseClass} bg-red-50 text-red-800 border-l-2 border-red-400`;
-      case 'Equal':
+      case "Equal":
       default:
         return `${baseClass} text-muted-foreground`;
     }
@@ -174,13 +199,13 @@ export function TaskAttemptComparePage() {
 
   const getChunkPrefix = (chunkType: DiffChunkType) => {
     switch (chunkType) {
-      case 'Insert':
-        return '+';
-      case 'Delete':
-        return '-';
-      case 'Equal':
+      case "Insert":
+        return "+";
+      case "Delete":
+        return "-";
+      case "Equal":
       default:
-        return ' ';
+        return " ";
     }
   };
 
@@ -191,7 +216,7 @@ export function TaskAttemptComparePage() {
   }
 
   interface ProcessedSection {
-    type: 'context' | 'change' | 'expanded';
+    type: "context" | "change" | "expanded";
     lines: ProcessedLine[];
     expandKey?: string;
     expandedAbove?: boolean;
@@ -204,14 +229,15 @@ export function TaskAttemptComparePage() {
     let currentLineNumber = 1;
 
     // Convert chunks to lines with line numbers
-    chunks.forEach(chunk => {
-      const chunkLines = chunk.content.split('\n');
+    chunks.forEach((chunk) => {
+      const chunkLines = chunk.content.split("\n");
       chunkLines.forEach((line, index) => {
-        if (index < chunkLines.length - 1 || line !== '') { // Skip empty last line from split
+        if (index < chunkLines.length - 1 || line !== "") {
+          // Skip empty last line from split
           lines.push({
             content: line,
             chunkType: chunk.chunk_type,
-            lineNumber: currentLineNumber++
+            lineNumber: currentLineNumber++,
           });
         }
       });
@@ -223,30 +249,38 @@ export function TaskAttemptComparePage() {
     while (i < lines.length) {
       const line = lines[i];
 
-      if (line.chunkType === 'Equal') {
+      if (line.chunkType === "Equal") {
         // Look for the next change or end of file
         let nextChangeIndex = i + 1;
-        while (nextChangeIndex < lines.length && lines[nextChangeIndex].chunkType === 'Equal') {
+        while (
+          nextChangeIndex < lines.length &&
+          lines[nextChangeIndex].chunkType === "Equal"
+        ) {
           nextChangeIndex++;
         }
 
         const contextLength = nextChangeIndex - i;
         const hasNextChange = nextChangeIndex < lines.length;
-        const hasPrevChange = sections.length > 0 && sections[sections.length - 1].type === 'change';
+        const hasPrevChange =
+          sections.length > 0 &&
+          sections[sections.length - 1].type === "change";
 
-        if (contextLength <= CONTEXT_LINES * 2 || (!hasPrevChange && !hasNextChange)) {
+        if (
+          contextLength <= CONTEXT_LINES * 2 ||
+          (!hasPrevChange && !hasNextChange)
+        ) {
           // Show all context if it's short or if there are no changes around it
           sections.push({
-            type: 'context',
-            lines: lines.slice(i, nextChangeIndex)
+            type: "context",
+            lines: lines.slice(i, nextChangeIndex),
           });
         } else {
           // Split into context sections with expandable middle
           if (hasPrevChange) {
             // Add context after previous change
             sections.push({
-              type: 'context',
-              lines: lines.slice(i, i + CONTEXT_LINES)
+              type: "context",
+              lines: lines.slice(i, i + CONTEXT_LINES),
             });
             i += CONTEXT_LINES;
           }
@@ -255,36 +289,39 @@ export function TaskAttemptComparePage() {
             // Add expandable section
             const expandStart = hasPrevChange ? i : i + CONTEXT_LINES;
             const expandEnd = nextChangeIndex - CONTEXT_LINES;
-            
+
             if (expandEnd > expandStart) {
               const expandKey = `${fileIndex}-${expandStart}-${expandEnd}`;
               const isExpanded = expandedSections.has(expandKey);
-              
+
               if (isExpanded) {
                 sections.push({
-                  type: 'expanded',
+                  type: "expanded",
                   lines: lines.slice(expandStart, expandEnd),
-                  expandKey
+                  expandKey,
                 });
               } else {
                 sections.push({
-                  type: 'context',
+                  type: "context",
                   lines: [],
-                  expandKey
+                  expandKey,
                 });
               }
             }
 
             // Add context before next change
             sections.push({
-              type: 'context',
-              lines: lines.slice(nextChangeIndex - CONTEXT_LINES, nextChangeIndex)
+              type: "context",
+              lines: lines.slice(
+                nextChangeIndex - CONTEXT_LINES,
+                nextChangeIndex
+              ),
             });
           } else if (!hasPrevChange) {
             // No changes around, just show first few lines
             sections.push({
-              type: 'context',
-              lines: lines.slice(i, i + CONTEXT_LINES)
+              type: "context",
+              lines: lines.slice(i, i + CONTEXT_LINES),
             });
           }
         }
@@ -293,13 +330,13 @@ export function TaskAttemptComparePage() {
       } else {
         // Found a change, collect all consecutive changes
         const changeStart = i;
-        while (i < lines.length && lines[i].chunkType !== 'Equal') {
+        while (i < lines.length && lines[i].chunkType !== "Equal") {
           i++;
         }
 
         sections.push({
-          type: 'change',
-          lines: lines.slice(changeStart, i)
+          type: "change",
+          lines: lines.slice(changeStart, i),
         });
       }
     }
@@ -308,7 +345,7 @@ export function TaskAttemptComparePage() {
   };
 
   const toggleExpandSection = (expandKey: string) => {
-    setExpandedSections(prev => {
+    setExpandedSections((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(expandKey)) {
         newSet.delete(expandKey);
@@ -317,6 +354,51 @@ export function TaskAttemptComparePage() {
       }
       return newSet;
     });
+  };
+
+  const handleDeleteFileClick = (filePath: string) => {
+    setFileToDelete(filePath);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!fileToDelete || !projectId || !taskId || !attemptId) return;
+
+    try {
+      setDeletingFiles((prev) => new Set(prev).add(fileToDelete));
+      const response = await makeRequest(
+        `/api/projects/${projectId}/tasks/${taskId}/attempts/${attemptId}/delete-file?file_path=${encodeURIComponent(
+          fileToDelete
+        )}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (response.ok) {
+        const result: ApiResponse<null> = await response.json();
+        if (result.success) {
+          // Refresh the diff to show updated state
+          fetchDiff();
+        } else {
+          setError(result.message || "Failed to delete file");
+        }
+      } else {
+        setError("Failed to delete file");
+      }
+    } catch (err) {
+      setError("Failed to delete file");
+    } finally {
+      setDeletingFiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(fileToDelete);
+        return newSet;
+      });
+      setFileToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setFileToDelete(null);
   };
 
   if (loading || branchStatusLoading) {
@@ -366,11 +448,13 @@ export function TaskAttemptComparePage() {
                 <span className="text-green-600">Up to date</span>
               ) : branchStatus.is_behind === true ? (
                 <span className="text-orange-600">
-                  {branchStatus.commits_behind} commit{branchStatus.commits_behind !== 1 ? 's' : ''} behind main
+                  {branchStatus.commits_behind} commit
+                  {branchStatus.commits_behind !== 1 ? "s" : ""} behind main
                 </span>
               ) : (
                 <span className="text-blue-600">
-                  {branchStatus.commits_ahead} commit{branchStatus.commits_ahead !== 1 ? 's' : ''} ahead of main
+                  {branchStatus.commits_ahead} commit
+                  {branchStatus.commits_ahead !== 1 ? "s" : ""} ahead of main
                 </span>
               )}
             </div>
@@ -395,21 +479,30 @@ export function TaskAttemptComparePage() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            {branchStatus && branchStatus.is_behind === true && !branchStatus.merged && (
-              <Button 
-                onClick={handleRebaseClick} 
-                disabled={rebasing || branchStatusLoading}
-                variant="outline"
-                className="border-orange-300 text-orange-700 hover:bg-orange-50"
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${rebasing ? 'animate-spin' : ''}`} />
-                {rebasing ? "Rebasing..." : "Rebase onto Main"}
-              </Button>
-            )}
+            {branchStatus &&
+              branchStatus.is_behind === true &&
+              !branchStatus.merged && (
+                <Button
+                  onClick={handleRebaseClick}
+                  disabled={rebasing || branchStatusLoading}
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                >
+                  <RefreshCw
+                    className={`mr-2 h-4 w-4 ${rebasing ? "animate-spin" : ""}`}
+                  />
+                  {rebasing ? "Rebasing..." : "Rebase onto Main"}
+                </Button>
+              )}
             {!branchStatus?.merged && (
-              <Button 
-                onClick={handleMergeClick} 
-                disabled={merging || !diff || diff.files.length === 0 || Boolean(branchStatus?.is_behind)}
+              <Button
+                onClick={handleMergeClick}
+                disabled={
+                  merging ||
+                  !diff ||
+                  diff.files.length === 0 ||
+                  Boolean(branchStatus?.is_behind)
+                }
                 className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
               >
                 {merging ? "Merging..." : "Merge Changes"}
@@ -425,7 +518,8 @@ export function TaskAttemptComparePage() {
             Diff: Base Commit vs. Current Worktree
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Shows changes made in the task attempt worktree compared to the base commit
+            Shows changes made in the task attempt worktree compared to the base
+            commit
           </p>
         </CardHeader>
         <CardContent>
@@ -433,62 +527,96 @@ export function TaskAttemptComparePage() {
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No changes detected</p>
-              <p className="text-sm">The worktree is identical to the base commit</p>
+              <p className="text-sm">
+                The worktree is identical to the base commit
+              </p>
             </div>
           ) : (
             <div className="space-y-6">
               {diff.files.map((file, fileIndex) => (
-                <div key={fileIndex} className="border rounded-lg overflow-hidden">
-                  <div className="bg-muted px-3 py-2 border-b">
+                <div
+                  key={fileIndex}
+                  className="border rounded-lg overflow-hidden"
+                >
+                  <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
                     <p className="text-sm font-medium text-muted-foreground font-mono">
                       {file.path}
                     </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteFileClick(file.path)}
+                      disabled={deletingFiles.has(file.path)}
+                      className="text-red-600 hover:text-red-800 hover:bg-red-50 h-8 px-3 gap-1"
+                      title={`Delete ${file.path}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="text-xs">
+                        {deletingFiles.has(file.path)
+                          ? "Deleting..."
+                          : "Delete File"}
+                      </span>
+                    </Button>
                   </div>
                   <div className="max-h-[600px] overflow-y-auto">
-                    {processFileChunks(file.chunks, fileIndex).map((section, sectionIndex) => {
-                      if (section.type === 'context' && section.lines.length === 0 && section.expandKey) {
-                        // Render expand button
-                        const lineCount = parseInt(section.expandKey.split('-')[2]) - parseInt(section.expandKey.split('-')[1]);
+                    {processFileChunks(file.chunks, fileIndex).map(
+                      (section, sectionIndex) => {
+                        if (
+                          section.type === "context" &&
+                          section.lines.length === 0 &&
+                          section.expandKey
+                        ) {
+                          // Render expand button
+                          const lineCount =
+                            parseInt(section.expandKey.split("-")[2]) -
+                            parseInt(section.expandKey.split("-")[1]);
+                          return (
+                            <div key={`expand-${section.expandKey}`}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  toggleExpandSection(section.expandKey!)
+                                }
+                                className="w-full h-8 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-b border-gray-200 rounded-none"
+                              >
+                                <ChevronDown className="h-3 w-3 mr-1" />
+                                Show {lineCount} more lines
+                              </Button>
+                            </div>
+                          );
+                        }
+
+                        // Render lines (context, change, or expanded)
                         return (
-                          <div key={`expand-${section.expandKey}`}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleExpandSection(section.expandKey!)}
-                              className="w-full h-8 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-b border-gray-200 rounded-none"
-                            >
-                              <ChevronDown className="h-3 w-3 mr-1" />
-                              Show {lineCount} more lines
-                            </Button>
+                          <div key={`section-${sectionIndex}`}>
+                            {section.type === "expanded" &&
+                              section.expandKey && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    toggleExpandSection(section.expandKey!)
+                                  }
+                                  className="w-full h-8 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-b border-gray-200 rounded-none"
+                                >
+                                  <ChevronUp className="h-3 w-3 mr-1" />
+                                  Hide expanded lines
+                                </Button>
+                              )}
+                            {section.lines.map((line, lineIndex) => (
+                              <div
+                                key={`${sectionIndex}-${lineIndex}`}
+                                className={getChunkClassName(line.chunkType)}
+                              >
+                                {getChunkPrefix(line.chunkType)}
+                                {line.content}
+                              </div>
+                            ))}
                           </div>
                         );
                       }
-
-                      // Render lines (context, change, or expanded)
-                      return (
-                        <div key={`section-${sectionIndex}`}>
-                          {section.type === 'expanded' && section.expandKey && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleExpandSection(section.expandKey!)}
-                              className="w-full h-8 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-b border-gray-200 rounded-none"
-                            >
-                              <ChevronUp className="h-3 w-3 mr-1" />
-                              Hide expanded lines
-                            </Button>
-                          )}
-                          {section.lines.map((line, lineIndex) => (
-                            <div 
-                              key={`${sectionIndex}-${lineIndex}`}
-                              className={getChunkClassName(line.chunkType)}
-                            >
-                              {getChunkPrefix(line.chunkType)}{line.content}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
+                    )}
                   </div>
                 </div>
               ))}
@@ -496,6 +624,41 @@ export function TaskAttemptComparePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete File Confirmation Dialog */}
+      <Dialog open={!!fileToDelete} onOpenChange={() => handleCancelDelete()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete File</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the file{" "}
+              <span className="font-mono font-medium">"{fileToDelete}"</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+              <p className="text-sm text-red-800">
+                <strong>Warning:</strong> This action will permanently remove
+                the entire file from the worktree. This cannot be undone.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelDelete}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deletingFiles.has(fileToDelete || "")}
+            >
+              {deletingFiles.has(fileToDelete || "")
+                ? "Deleting..."
+                : "Delete File"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
