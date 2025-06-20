@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\", task_id as \"task_id!: Uuid\", worktree_path, base_commit, merge_commit, executor, stdout, stderr, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM task_attempts \n               WHERE task_id = $1 \n               ORDER BY created_at DESC",
+  "query": "SELECT id as \"id!: Uuid\", task_id as \"task_id!: Uuid\", worktree_path, merge_commit, executor, stdout, stderr, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM task_attempts \n               WHERE task_id = $1 \n               ORDER BY created_at DESC",
   "describe": {
     "columns": [
       {
@@ -19,38 +19,33 @@
         "type_info": "Text"
       },
       {
-        "name": "base_commit",
+        "name": "merge_commit",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "merge_commit",
+        "name": "executor",
         "ordinal": 4,
         "type_info": "Text"
       },
       {
-        "name": "executor",
+        "name": "stdout",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "stdout",
+        "name": "stderr",
         "ordinal": 6,
         "type_info": "Text"
       },
       {
-        "name": "stderr",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
-        "ordinal": 8,
-        "type_info": "Text"
-      },
-      {
         "name": "updated_at!: DateTime<Utc>",
-        "ordinal": 9,
+        "ordinal": 8,
         "type_info": "Text"
       }
     ],
@@ -65,10 +60,9 @@
       true,
       true,
       true,
-      true,
       false,
       false
     ]
   },
-  "hash": "1b24e3eeb2782cdb4e5b98a1b82eeba8eb9b51a5b09dde436da6800d29277b1c"
+  "hash": "3c109510d6e312b21f74508040a14c4f3c264cc8e53d864473b35e54662e99d5"
 }

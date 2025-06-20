@@ -69,7 +69,6 @@ pub struct TaskAttempt {
     pub id: Uuid,
     pub task_id: Uuid, // Foreign key to Task
     pub worktree_path: String,
-    pub base_commit: Option<String>,
     pub merge_commit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub executor: Option<String>, // Name of the executor to use
@@ -84,7 +83,6 @@ pub struct TaskAttempt {
 pub struct CreateTaskAttempt {
     pub task_id: Uuid,
     pub worktree_path: String,
-    pub base_commit: Option<String>,
     pub merge_commit: Option<String>,
     pub executor: Option<String>,
 }
@@ -93,7 +91,6 @@ pub struct CreateTaskAttempt {
 #[ts(export)]
 pub struct UpdateTaskAttempt {
     pub worktree_path: Option<String>,
-    pub base_commit: Option<String>,
     pub merge_commit: Option<String>,
 }
 
@@ -138,7 +135,7 @@ impl TaskAttempt {
     pub async fn find_by_id(pool: &SqlitePool, id: Uuid) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as!(
             TaskAttempt,
-            r#"SELECT id as "id!: Uuid", task_id as "task_id!: Uuid", worktree_path, base_commit, merge_commit, executor, stdout, stderr, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", task_id as "task_id!: Uuid", worktree_path, merge_commit, executor, stdout, stderr, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM task_attempts 
                WHERE id = $1"#,
             id
@@ -153,7 +150,7 @@ impl TaskAttempt {
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as!(
             TaskAttempt,
-            r#"SELECT id as "id!: Uuid", task_id as "task_id!: Uuid", worktree_path, base_commit, merge_commit, executor, stdout, stderr, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", task_id as "task_id!: Uuid", worktree_path, merge_commit, executor, stdout, stderr, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM task_attempts 
                WHERE task_id = $1 
                ORDER BY created_at DESC"#,
@@ -182,13 +179,7 @@ impl TaskAttempt {
         let repo = Repository::open(&project.git_repo_path)?;
         let worktree_path = Path::new(&data.worktree_path);
 
-        // Get base commit
-        let base_commit = {
-            let head = repo.head()?;
-            // Peel it to a commit object and grab its ID
-            let commit = head.peel_to_commit()?;
-            commit.id().to_string()
-        };
+        // We no longer store base_commit in the database - it's retrieved live via git2
 
         // Create the worktree directory if it doesn't exist
         if let Some(parent) = worktree_path.parent() {
@@ -203,13 +194,12 @@ impl TaskAttempt {
         // Insert the record into the database
         Ok(sqlx::query_as!(
             TaskAttempt,
-            r#"INSERT INTO task_attempts (id, task_id, worktree_path, base_commit, merge_commit, executor, stdout, stderr) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
-               RETURNING id as "id!: Uuid", task_id as "task_id!: Uuid", worktree_path, base_commit, merge_commit, executor, stdout, stderr, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
+            r#"INSERT INTO task_attempts (id, task_id, worktree_path, merge_commit, executor, stdout, stderr) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7) 
+               RETURNING id as "id!: Uuid", task_id as "task_id!: Uuid", worktree_path, merge_commit, executor, stdout, stderr, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
             attempt_id,
             data.task_id,
             data.worktree_path,
-            base_commit,
             data.merge_commit,
             data.executor,
             None::<String>, // stdout
@@ -412,7 +402,7 @@ impl TaskAttempt {
         // Get the task attempt with validation
         let attempt = sqlx::query_as!(
             TaskAttempt,
-            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.base_commit, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
                FROM task_attempts ta 
                JOIN tasks t ON ta.task_id = t.id 
                WHERE ta.id = $1 AND t.id = $2 AND t.project_id = $3"#,
@@ -627,7 +617,7 @@ impl TaskAttempt {
         // Get the task attempt with validation
         let attempt = sqlx::query_as!(
             TaskAttempt,
-            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.base_commit, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
                FROM task_attempts ta 
                JOIN tasks t ON ta.task_id = t.id 
                WHERE ta.id = $1 AND t.id = $2 AND t.project_id = $3"#,
@@ -651,14 +641,14 @@ impl TaskAttempt {
         // Open the worktree repository
         let worktree_repo = Repository::open(&attempt.worktree_path)?;
 
-        // Get the base commit
-        let base_commit_str = attempt
-            .base_commit
-            .ok_or_else(|| TaskAttemptError::Git(GitError::from_str("No base commit found")))?;
+        // Get the project to access the main repository for base commit
+        let project = Project::find_by_id(pool, project_id)
+            .await?
+            .ok_or(TaskAttemptError::ProjectNotFound)?;
 
-        let base_oid =
-            git2::Oid::from_str(&base_commit_str).map_err(|e| TaskAttemptError::Git(e))?;
-
+        // Get the base commit from the main repository (live data)
+        let main_repo = Repository::open(&project.git_repo_path)?;
+        let base_oid = main_repo.head()?.peel_to_commit()?.id();
         let base_commit = worktree_repo.find_commit(base_oid)?;
         let base_tree = base_commit.tree()?;
 
@@ -748,7 +738,7 @@ impl TaskAttempt {
         // Get the task attempt with validation
         let attempt = sqlx::query_as!(
             TaskAttempt,
-            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.base_commit, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
                FROM task_attempts ta 
                JOIN tasks t ON ta.task_id = t.id 
                WHERE ta.id = $1 AND t.id = $2 AND t.project_id = $3"#,
@@ -759,10 +749,6 @@ impl TaskAttempt {
         .fetch_optional(pool)
         .await?
         .ok_or(TaskAttemptError::TaskNotFound)?;
-
-        let base_commit = git2::Oid::from_str(&attempt.base_commit.ok_or(
-            TaskAttemptError::GitOutOfSync(anyhow!("Base commit missing")),
-        )?)?;
 
         // Get the project
         let project = Project::find_by_id(pool, project_id)
@@ -783,7 +769,7 @@ impl TaskAttempt {
         let worktree_head = worktree_repo.head()?.peel_to_commit()?;
         let worktree_oid = worktree_head.id();
 
-        if main_oid == base_commit {
+        if main_oid == worktree_oid {
             // Branches are at the same commit
             return Ok(BranchStatus {
                 is_behind: false,
@@ -876,7 +862,7 @@ impl TaskAttempt {
         // 🔟 final check
         let final_oid = repo.head()?.peel_to_commit()?.id();
 
-        Ok(final_oid.to_string())
+        Ok(main_oid.to_string())
     }
 
     /// Rebase the worktree branch onto main
@@ -889,7 +875,7 @@ impl TaskAttempt {
         // Get the task attempt with validation
         let attempt = sqlx::query_as!(
             TaskAttempt,
-            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.base_commit, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT ta.id as "id!: Uuid", ta.task_id as "task_id!: Uuid", ta.worktree_path, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as "created_at!: DateTime<Utc>", ta.updated_at as "updated_at!: DateTime<Utc>"
                FROM task_attempts ta 
                JOIN tasks t ON ta.task_id = t.id 
                WHERE ta.id = $1 AND t.id = $2 AND t.project_id = $3"#,
@@ -910,15 +896,7 @@ impl TaskAttempt {
         let new_base_commit =
             Self::perform_rebase_operation(&attempt.worktree_path, &project.git_repo_path)?;
 
-        // Update the base_commit in the database
-        sqlx::query!(
-            "UPDATE task_attempts SET base_commit = ?, updated_at = datetime('now') WHERE id = ?",
-            new_base_commit,
-            attempt_id
-        )
-        .execute(pool)
-        .await?;
-
+        // No need to update database as we now get base_commit live from git
         Ok(new_base_commit)
     }
 }

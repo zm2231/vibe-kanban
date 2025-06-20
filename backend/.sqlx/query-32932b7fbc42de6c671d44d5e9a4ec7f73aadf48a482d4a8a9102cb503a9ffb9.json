@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\", task_id as \"task_id!: Uuid\", worktree_path, base_commit, merge_commit, executor, stdout, stderr, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM task_attempts \n               WHERE id = $1",
+  "query": "INSERT INTO task_attempts (id, task_id, worktree_path, merge_commit, executor, stdout, stderr) \n               VALUES ($1, $2, $3, $4, $5, $6, $7) \n               RETURNING id as \"id!: Uuid\", task_id as \"task_id!: Uuid\", worktree_path, merge_commit, executor, stdout, stderr, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"",
   "describe": {
     "columns": [
       {
@@ -19,43 +19,38 @@
         "type_info": "Text"
       },
       {
-        "name": "base_commit",
+        "name": "merge_commit",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "merge_commit",
+        "name": "executor",
         "ordinal": 4,
         "type_info": "Text"
       },
       {
-        "name": "executor",
+        "name": "stdout",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "stdout",
+        "name": "stderr",
         "ordinal": 6,
         "type_info": "Text"
       },
       {
-        "name": "stderr",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
-        "ordinal": 8,
-        "type_info": "Text"
-      },
-      {
         "name": "updated_at!: DateTime<Utc>",
-        "ordinal": 9,
+        "ordinal": 8,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 7
     },
     "nullable": [
       true,
@@ -65,10 +60,9 @@
       true,
       true,
       true,
-      true,
       false,
       false
     ]
   },
-  "hash": "a58a2bdcf1545b9a854e799a2fbb0ddd843886ecbfb8ff15b82fb4bb6c382e4d"
+  "hash": "32932b7fbc42de6c671d44d5e9a4ec7f73aadf48a482d4a8a9102cb503a9ffb9"
 }

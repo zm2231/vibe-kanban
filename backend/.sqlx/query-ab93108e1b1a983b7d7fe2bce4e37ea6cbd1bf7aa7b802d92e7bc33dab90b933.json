@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT ta.id as \"id!: Uuid\", ta.task_id as \"task_id!: Uuid\", ta.worktree_path, ta.base_commit, ta.merge_commit, ta.executor, ta.stdout, ta.stderr, ta.created_at as \"created_at!: DateTime<Utc>\", ta.updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM task_attempts ta \n               JOIN tasks t ON ta.task_id = t.id \n               WHERE ta.id = $1 AND t.id = $2 AND t.project_id = $3",
+  "query": "SELECT id as \"id!: Uuid\", task_id as \"task_id!: Uuid\", worktree_path, merge_commit, executor, stdout, stderr, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM task_attempts \n               WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -19,43 +19,38 @@
         "type_info": "Text"
       },
       {
-        "name": "base_commit",
+        "name": "merge_commit",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "merge_commit",
+        "name": "executor",
         "ordinal": 4,
         "type_info": "Text"
       },
       {
-        "name": "executor",
+        "name": "stdout",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "stdout",
+        "name": "stderr",
         "ordinal": 6,
         "type_info": "Text"
       },
       {
-        "name": "stderr",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
-        "ordinal": 8,
-        "type_info": "Text"
-      },
-      {
         "name": "updated_at!: DateTime<Utc>",
-        "ordinal": 9,
+        "ordinal": 8,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 1
     },
     "nullable": [
       true,
@@ -65,10 +60,9 @@
       true,
       true,
       true,
-      true,
       false,
       false
     ]
   },
-  "hash": "3c39fa95b7cf269831467950e5f873f8e0b93bf512a226ccf4d22d2252d80f1b"
+  "hash": "ab93108e1b1a983b7d7fe2bce4e37ea6cbd1bf7aa7b802d92e7bc33dab90b933"
 }

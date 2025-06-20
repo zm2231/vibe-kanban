@@ -25,7 +25,6 @@ CREATE TABLE task_attempts (
     id            BLOB PRIMARY KEY,
     task_id       BLOB NOT NULL,
     worktree_path TEXT NOT NULL,
-    base_commit   TEXT,
     merge_commit  TEXT,
     executor      TEXT,
     stdout        TEXT,
