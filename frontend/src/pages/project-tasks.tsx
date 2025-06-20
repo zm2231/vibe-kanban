@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Plus } from "lucide-react";
 import { makeRequest } from "@/lib/api";
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
+import { useKeyboardShortcuts } from "@/lib/keyboard-shortcuts";
 
 import { TaskKanbanBoard } from "@/components/tasks/TaskKanbanBoard";
 import type { TaskStatus, TaskWithAttemptStatus } from "shared/types";
@@ -35,6 +36,21 @@ export function ProjectTasks() {
   const [error, setError] = useState<string | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Define task creation handler
+  const handleCreateNewTask = () => {
+    setEditingTask(null);
+    setIsTaskDialogOpen(true);
+  };
+
+  // Setup keyboard shortcuts
+  useKeyboardShortcuts({
+    navigate,
+    currentPath: `/projects/${projectId}/tasks`,
+    hasOpenDialog: isTaskDialogOpen,
+    closeDialog: () => setIsTaskDialogOpen(false),
+    openCreateTask: handleCreateNewTask
+  });
 
   useEffect(() => {
     if (projectId) {
@@ -175,11 +191,6 @@ export function ProjectTasks() {
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
-    setIsTaskDialogOpen(true);
-  };
-
-  const handleCreateNewTask = () => {
-    setEditingTask(null);
     setIsTaskDialogOpen(true);
   };
 
