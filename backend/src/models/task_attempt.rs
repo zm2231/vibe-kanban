@@ -1,10 +1,11 @@
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use git2::build::CheckoutBuilder;
-use git2::{Error as GitError, MergeOptions, RebaseOptions, Repository};
+use git2::{Error as GitError, MergeOptions, Oid, RebaseOptions, Repository};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool, Type};
 use std::path::Path;
+use tracing::{debug, error, info};
 use ts_rs::TS;
 use uuid::Uuid;
 
@@ -819,67 +820,63 @@ impl TaskAttempt {
         worktree_path: &str,
         main_repo_path: &str,
     ) -> Result<String, TaskAttemptError> {
-        // Open both repos
         let main_repo = Repository::open(main_repo_path)?;
-        let worktree_repo = Repository::open(worktree_path)?;
+        let repo = Repository::open(worktree_path)?;
 
-        // Figure out the new base
-        let main_head = main_repo.head()?.peel_to_commit()?;
-        let main_oid = main_head.id();
-        let new_base = main_oid.to_string();
+        // 1️⃣ get main HEAD oid
+        let main_oid = main_repo.head()?.peel_to_commit()?.id();
 
-        // If already up-to-date:
-        let worktree_oid = worktree_repo.head()?.peel_to_commit()?.id();
-        if main_oid == worktree_oid {
-            return Ok(new_base);
+        // 2️⃣ early exit if up-to-date
+        let orig_oid = repo.head()?.peel_to_commit()?.id();
+        if orig_oid == main_oid {
+            return Ok(orig_oid.to_string());
         }
 
-        // Build an in-memory rebase
-        let mut rebase_opts = RebaseOptions::new();
-        rebase_opts
-            .inmemory(true) // never touch the workdir :contentReference[oaicite:0]{index=0}
-            .merge_options(MergeOptions::new()); // defaults are fine here
+        // 3️⃣ prepare upstream
+        let main_annot = repo.find_annotated_commit(main_oid)?;
 
-        // (Optional) tweak checkout so it really refuses to write conflicts:
-        let mut co = CheckoutBuilder::new();
-        co.safe() // safe-mode checkout (won’t overwrite)
-            .conflict_style_merge(false) // don’t write any merge markers :contentReference[oaicite:1]{index=1}
-            .skip_unmerged(true); // skip files with conflicts
-        rebase_opts.checkout_options(co);
+        // 4️⃣ set up in-memory rebase
+        let mut opts = RebaseOptions::new();
+        opts.inmemory(true).merge_options(MergeOptions::new());
 
-        // Prepare the annotated commits
-        let main_annot = worktree_repo.find_annotated_commit(main_oid)?;
-        let wt_annot = worktree_repo.find_annotated_commit(worktree_oid)?;
+        // 5️⃣ start rebase of HEAD onto main
+        let mut reb = repo.rebase(None, Some(&main_annot), None, Some(&mut opts))?;
 
-        // Start the rebase in-memory
-        let mut rebase = worktree_repo.rebase(
-            Some(&wt_annot),   // branch to rebase
-            None,              // upstream (none = simple)
-            Some(&main_annot), // onto
-            Some(&mut rebase_opts),
-        )?;
-
-        // Iterate operations
-        let sig = worktree_repo.signature()?;
-        loop {
-            match rebase.next() {
-                Some(Ok(op)) => {
-                    // apply commit in-memory
-                    let c = worktree_repo.find_commit(op.id())?;
-                    rebase.commit(None, &sig, Some(c.message().map(|s| s).unwrap_or("")))?;
+        // 6️⃣ replay commits, remember last OID
+        let sig = repo.signature()?;
+        let mut last_oid: Option<Oid> = None;
+        while let Some(res) = reb.next() {
+            match res {
+                Ok(op) => {
+                    let new_oid = reb.commit(None, &sig, None)?;
+                    last_oid = Some(new_oid);
                 }
-                Some(Err(e)) => {
-                    // conflict or other error → abort cleanly
-                    rebase.abort()?;
+                Err(e) => {
+                    error!("rebase op failed: {}", e);
+                    reb.abort()?;
                     return Err(TaskAttemptError::Git(e));
                 }
-                None => break,
             }
         }
 
-        // finish (still in-memory, so no tree magic happened)
-        rebase.finish(None)?;
-        Ok(new_base)
+        // 7️⃣ finish (still in-memory)
+        reb.finish(Some(&sig))?;
+
+        // 8️⃣ repoint your branch ref (HEAD is a symbolic to this ref)
+        if let Some(target) = last_oid {
+            let head_ref = repo.head()?; // symbolic HEAD
+            let branch_name = head_ref.name().unwrap(); // e.g. "refs/heads/feature"
+            let mut r = repo.find_reference(branch_name)?;
+            r.set_target(target, "rebase: update branch")?;
+        }
+
+        // 9️⃣ update working tree
+        repo.checkout_head(Some(CheckoutBuilder::new().force()))?;
+
+        // 🔟 final check
+        let final_oid = repo.head()?.peel_to_commit()?.id();
+
+        Ok(final_oid.to_string())
     }
 
     /// Rebase the worktree branch onto main
