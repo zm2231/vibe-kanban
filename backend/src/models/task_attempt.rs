@@ -430,6 +430,9 @@ impl TaskAttempt {
         task_id: Uuid,
         project_id: Uuid,
     ) -> Result<(), TaskAttemptError> {
+        use crate::models::execution_process::{
+            CreateExecutionProcess, ExecutionProcess, ExecutionProcessType,
+        };
         use crate::models::project::Project;
         use crate::models::task::{Task, TaskStatus};
         use crate::models::task_attempt_activity::{
@@ -471,14 +474,29 @@ impl TaskAttempt {
                 )
                 .await?;
 
+                // Create execution process record for setup script
+                let setup_process_id = Uuid::new_v4();
+                let create_setup_process = CreateExecutionProcess {
+                    task_attempt_id: attempt_id,
+                    process_type: ExecutionProcessType::SetupScript,
+                    command: "bash".to_string(),
+                    args: Some(serde_json::to_string(&["-c", setup_script]).unwrap()),
+                    working_directory: task_attempt.worktree_path.clone(),
+                };
+
+                let _setup_process =
+                    ExecutionProcess::create(pool, &create_setup_process, setup_process_id).await?;
+
                 tracing::info!("Running setup script for task attempt {}", attempt_id);
 
-                let output = tokio::process::Command::new("bash")
+                // Start setup script as streaming process
+                let child = tokio::process::Command::new("bash")
                     .arg("-c")
                     .arg(setup_script)
                     .current_dir(&task_attempt.worktree_path)
-                    .output()
-                    .await
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()
                     .map_err(|e| {
                         TaskAttemptError::Git(git2::Error::from_str(&format!(
                             "Failed to execute setup script: {}",
@@ -486,59 +504,53 @@ impl TaskAttempt {
                         )))
                     })?;
 
-                if !output.status.success() {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    tracing::error!("Setup script failed for attempt {}: {}", attempt_id, stderr);
-
-                    // Create activity for setup script failure
-                    let activity_id = Uuid::new_v4();
-                    let create_activity = CreateTaskAttemptActivity {
-                        task_attempt_id: attempt_id,
-                        status: Some(TaskAttemptStatus::SetupFailed),
-                        note: Some(format!("Setup script failed: {}", stderr)),
-                    };
-
-                    TaskAttemptActivity::create(
-                        pool,
-                        &create_activity,
-                        activity_id,
-                        TaskAttemptStatus::SetupFailed,
+                // Add setup script to running executions for monitoring
+                app_state
+                    .add_running_execution(
+                        setup_process_id,
+                        crate::app_state::RunningExecution {
+                            task_attempt_id: attempt_id,
+                            execution_type: ExecutionType::SetupScript,
+                            child,
+                        },
                     )
-                    .await?;
+                    .await;
 
-                    // Update task status to InReview
-                    Task::update_status(pool, task_id, project_id, TaskStatus::InReview).await?;
-
-                    return Err(TaskAttemptError::Git(git2::Error::from_str(&format!(
-                        "Setup script failed: {}",
-                        stderr
-                    ))));
-                }
-
-                let stdout = String::from_utf8_lossy(&output.stdout);
                 tracing::info!(
-                    "Setup script completed for attempt {}: {}",
-                    attempt_id,
-                    stdout
+                    "Started setup script execution {} for task attempt {}",
+                    setup_process_id,
+                    attempt_id
                 );
 
-                // Create activity for setup script completion
-                let activity_id = Uuid::new_v4();
-                let create_activity = CreateTaskAttemptActivity {
-                    task_attempt_id: attempt_id,
-                    status: Some(TaskAttemptStatus::SetupComplete),
-                    note: Some("Setup script completed successfully".to_string()),
-                };
-
-                TaskAttemptActivity::create(
-                    pool,
-                    &create_activity,
-                    activity_id,
-                    TaskAttemptStatus::SetupComplete,
-                )
-                .await?;
+                // Wait for setup script to complete before starting executor
+                // We'll let the execution monitor handle the completion and then start the executor
+                return Ok(());
             }
         }
+
+        // If no setup script, start executor directly
+        Self::start_coding_agent(pool, app_state, attempt_id, task_id, project_id).await
+    }
+
+    /// Start the coding agent after setup is complete or if no setup is needed
+    pub async fn start_coding_agent(
+        pool: &SqlitePool,
+        app_state: &crate::app_state::AppState,
+        attempt_id: Uuid,
+        task_id: Uuid,
+        _project_id: Uuid,
+    ) -> Result<(), TaskAttemptError> {
+        use crate::models::execution_process::{
+            CreateExecutionProcess, ExecutionProcess, ExecutionProcessType,
+        };
+        use crate::models::task_attempt_activity::{
+            CreateTaskAttemptActivity, TaskAttemptActivity,
+        };
+
+        // Get the task attempt
+        let task_attempt = TaskAttempt::find_by_id(pool, attempt_id)
+            .await?
+            .ok_or(TaskAttemptError::TaskNotFound)?;
 
         // Step 2: Start the executor
         let executor = task_attempt.get_executor();
@@ -559,16 +571,28 @@ impl TaskAttempt {
         )
         .await?;
 
+        // Create execution process record for coding agent
+        let agent_process_id = Uuid::new_v4();
+        let create_agent_process = CreateExecutionProcess {
+            task_attempt_id: attempt_id,
+            process_type: ExecutionProcessType::CodingAgent,
+            command: "executor".to_string(), // This will be the actual executor command
+            args: None, // Executor-specific args will be handled by the executor itself
+            working_directory: task_attempt.worktree_path.clone(),
+        };
+
+        let _agent_process =
+            ExecutionProcess::create(pool, &create_agent_process, agent_process_id).await?;
+
         let child = executor
             .execute_streaming(pool, task_id, attempt_id, &task_attempt.worktree_path)
             .await
             .map_err(|e| TaskAttemptError::Git(git2::Error::from_str(&e.to_string())))?;
 
         // Add to running executions
-        let execution_id = Uuid::new_v4();
         app_state
             .add_running_execution(
-                execution_id,
+                agent_process_id,
                 crate::app_state::RunningExecution {
                     task_attempt_id: attempt_id,
                     execution_type: ExecutionType::CodingAgent,
@@ -579,7 +603,7 @@ impl TaskAttempt {
 
         tracing::info!(
             "Started execution {} for task attempt {}",
-            execution_id,
+            agent_process_id,
             attempt_id
         );
 

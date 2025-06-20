@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 use crate::app_state::AppState;
 use crate::models::{
+    execution_process::{ExecutionProcess, ExecutionProcessStatus, ExecutionProcessType},
     task::{Task, TaskStatus},
     task_attempt::{TaskAttempt, TaskAttemptStatus},
     task_attempt_activity::{CreateTaskAttemptActivity, TaskAttemptActivity},
@@ -191,82 +192,282 @@ pub async fn execution_monitor(app_state: AppState) {
 
             tracing::info!("Execution {} {}{}", execution_id, status_text, exit_text);
 
-            // Play sound notification if enabled
-            if app_state.get_sound_alerts_enabled().await {
-                play_sound_notification().await;
+            // Update the execution process record
+            let execution_status = if success {
+                ExecutionProcessStatus::Completed
+            } else {
+                ExecutionProcessStatus::Failed
+            };
+
+            if let Err(e) = ExecutionProcess::update_completion(
+                &app_state.db_pool,
+                execution_id,
+                execution_status,
+                exit_code,
+            )
+            .await
+            {
+                tracing::error!(
+                    "Failed to update execution process {} completion: {}",
+                    execution_id,
+                    e
+                );
             }
 
-            // Get task attempt to access worktree path for committing changes
-            if let Ok(Some(task_attempt)) =
-                TaskAttempt::find_by_id(&app_state.db_pool, task_attempt_id).await
+            // Get the execution process to determine next steps
+            if let Ok(Some(execution_process)) =
+                ExecutionProcess::find_by_id(&app_state.db_pool, execution_id).await
             {
-                // Commit any unstaged changes after execution completion
-                if let Err(e) =
-                    commit_execution_changes(&task_attempt.worktree_path, task_attempt_id).await
-                {
-                    tracing::error!(
-                        "Failed to commit execution changes for attempt {}: {}",
-                        task_attempt_id,
-                        e
-                    );
-                } else {
-                    tracing::info!(
-                        "Successfully committed execution changes for attempt {}",
-                        task_attempt_id
-                    );
-                }
-
-                // Create task attempt activity with appropriate completion status
-                let activity_id = Uuid::new_v4();
-                let status = if success {
-                    TaskAttemptStatus::ExecutorComplete
-                } else {
-                    TaskAttemptStatus::ExecutorFailed
-                };
-                let create_activity = CreateTaskAttemptActivity {
-                    task_attempt_id,
-                    status: Some(status.clone()),
-                    note: Some(format!("Execution completed{}", exit_text)),
-                };
-
-                if let Err(e) = TaskAttemptActivity::create(
-                    &app_state.db_pool,
-                    &create_activity,
-                    activity_id,
-                    status,
-                )
-                .await
-                {
-                    tracing::error!("Failed to create paused activity: {}", e);
-                } else {
-                    tracing::info!(
-                        "Task attempt {} set to paused after execution completion",
-                        task_attempt_id
-                    );
-
-                    // Get task to access task_id and project_id for status update
-                    if let Ok(Some(task)) =
-                        Task::find_by_id(&app_state.db_pool, task_attempt.task_id).await
-                    {
-                        // Update task status to InReview
-                        if let Err(e) = Task::update_status(
-                            &app_state.db_pool,
-                            task.id,
-                            task.project_id,
-                            TaskStatus::InReview,
+                match execution_process.process_type {
+                    ExecutionProcessType::SetupScript => {
+                        handle_setup_completion(
+                            &app_state,
+                            task_attempt_id,
+                            execution_process,
+                            success,
+                            exit_code,
                         )
-                        .await
-                        {
-                            tracing::error!("Failed to update task status to InReview for completed attempt: {}", e);
-                        }
+                        .await;
+                    }
+                    ExecutionProcessType::CodingAgent => {
+                        handle_coding_agent_completion(
+                            &app_state,
+                            task_attempt_id,
+                            execution_process,
+                            success,
+                            exit_code,
+                        )
+                        .await;
+                    }
+                    ExecutionProcessType::DevServer => {
+                        handle_dev_server_completion(
+                            &app_state,
+                            task_attempt_id,
+                            execution_process,
+                            success,
+                            exit_code,
+                        )
+                        .await;
                     }
                 }
             } else {
                 tracing::error!(
-                    "Failed to find task attempt {} for execution completion",
-                    task_attempt_id
+                    "Failed to find execution process {} for completion handling",
+                    execution_id
                 );
             }
         }
     }
+}
+
+/// Handle setup script completion
+async fn handle_setup_completion(
+    app_state: &AppState,
+    task_attempt_id: Uuid,
+    _execution_process: ExecutionProcess,
+    success: bool,
+    exit_code: Option<i64>,
+) {
+    let exit_text = if let Some(code) = exit_code {
+        format!(" with exit code {}", code)
+    } else {
+        String::new()
+    };
+
+    if success {
+        // Setup completed successfully, create activity
+        let activity_id = Uuid::new_v4();
+        let create_activity = CreateTaskAttemptActivity {
+            task_attempt_id,
+            status: Some(TaskAttemptStatus::SetupComplete),
+            note: Some(format!("Setup script completed successfully{}", exit_text)),
+        };
+
+        if let Err(e) = TaskAttemptActivity::create(
+            &app_state.db_pool,
+            &create_activity,
+            activity_id,
+            TaskAttemptStatus::SetupComplete,
+        )
+        .await
+        {
+            tracing::error!("Failed to create setup complete activity: {}", e);
+            return;
+        }
+
+        // Get task and project info to start coding agent
+        if let Ok(Some(task_attempt)) =
+            TaskAttempt::find_by_id(&app_state.db_pool, task_attempt_id).await
+        {
+            if let Ok(Some(task)) = Task::find_by_id(&app_state.db_pool, task_attempt.task_id).await
+            {
+                // Start the coding agent
+                if let Err(e) = TaskAttempt::start_coding_agent(
+                    &app_state.db_pool,
+                    app_state,
+                    task_attempt_id,
+                    task.id,
+                    task.project_id,
+                )
+                .await
+                {
+                    tracing::error!("Failed to start coding agent after setup completion: {}", e);
+                }
+            }
+        }
+    } else {
+        // Setup failed, create activity and update task status
+        let activity_id = Uuid::new_v4();
+        let create_activity = CreateTaskAttemptActivity {
+            task_attempt_id,
+            status: Some(TaskAttemptStatus::SetupFailed),
+            note: Some(format!("Setup script failed{}", exit_text)),
+        };
+
+        if let Err(e) = TaskAttemptActivity::create(
+            &app_state.db_pool,
+            &create_activity,
+            activity_id,
+            TaskAttemptStatus::SetupFailed,
+        )
+        .await
+        {
+            tracing::error!("Failed to create setup failed activity: {}", e);
+        }
+
+        // Update task status to InReview since setup failed
+        if let Ok(Some(task_attempt)) =
+            TaskAttempt::find_by_id(&app_state.db_pool, task_attempt_id).await
+        {
+            if let Ok(Some(task)) = Task::find_by_id(&app_state.db_pool, task_attempt.task_id).await
+            {
+                if let Err(e) = Task::update_status(
+                    &app_state.db_pool,
+                    task.id,
+                    task.project_id,
+                    TaskStatus::InReview,
+                )
+                .await
+                {
+                    tracing::error!(
+                        "Failed to update task status to InReview after setup failure: {}",
+                        e
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Handle coding agent completion
+async fn handle_coding_agent_completion(
+    app_state: &AppState,
+    task_attempt_id: Uuid,
+    _execution_process: ExecutionProcess,
+    success: bool,
+    exit_code: Option<i64>,
+) {
+    let exit_text = if let Some(code) = exit_code {
+        format!(" with exit code {}", code)
+    } else {
+        String::new()
+    };
+
+    // Play sound notification if enabled
+    if app_state.get_sound_alerts_enabled().await {
+        play_sound_notification().await;
+    }
+
+    // Get task attempt to access worktree path for committing changes
+    if let Ok(Some(task_attempt)) =
+        TaskAttempt::find_by_id(&app_state.db_pool, task_attempt_id).await
+    {
+        // Commit any unstaged changes after execution completion
+        if let Err(e) = commit_execution_changes(&task_attempt.worktree_path, task_attempt_id).await
+        {
+            tracing::error!(
+                "Failed to commit execution changes for attempt {}: {}",
+                task_attempt_id,
+                e
+            );
+        } else {
+            tracing::info!(
+                "Successfully committed execution changes for attempt {}",
+                task_attempt_id
+            );
+        }
+
+        // Create task attempt activity with appropriate completion status
+        let activity_id = Uuid::new_v4();
+        let status = if success {
+            TaskAttemptStatus::ExecutorComplete
+        } else {
+            TaskAttemptStatus::ExecutorFailed
+        };
+        let create_activity = CreateTaskAttemptActivity {
+            task_attempt_id,
+            status: Some(status.clone()),
+            note: Some(format!("Coding agent execution completed{}", exit_text)),
+        };
+
+        if let Err(e) =
+            TaskAttemptActivity::create(&app_state.db_pool, &create_activity, activity_id, status)
+                .await
+        {
+            tracing::error!("Failed to create executor completion activity: {}", e);
+        } else {
+            tracing::info!(
+                "Task attempt {} set to paused after coding agent completion",
+                task_attempt_id
+            );
+
+            // Get task to access task_id and project_id for status update
+            if let Ok(Some(task)) = Task::find_by_id(&app_state.db_pool, task_attempt.task_id).await
+            {
+                // Update task status to InReview
+                if let Err(e) = Task::update_status(
+                    &app_state.db_pool,
+                    task.id,
+                    task.project_id,
+                    TaskStatus::InReview,
+                )
+                .await
+                {
+                    tracing::error!(
+                        "Failed to update task status to InReview for completed attempt: {}",
+                        e
+                    );
+                }
+            }
+        }
+    } else {
+        tracing::error!(
+            "Failed to find task attempt {} for coding agent completion",
+            task_attempt_id
+        );
+    }
+}
+
+/// Handle dev server completion (future functionality)
+async fn handle_dev_server_completion(
+    _app_state: &AppState,
+    task_attempt_id: Uuid,
+    _execution_process: ExecutionProcess,
+    _success: bool,
+    exit_code: Option<i64>,
+) {
+    let exit_text = if let Some(code) = exit_code {
+        format!(" with exit code {}", code)
+    } else {
+        String::new()
+    };
+
+    tracing::info!(
+        "Dev server for task attempt {} completed{}",
+        task_attempt_id,
+        exit_text
+    );
+
+    // Dev servers might restart automatically or have different completion semantics
+    // For now, just log the completion
 }

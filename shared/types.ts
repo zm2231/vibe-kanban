@@ -40,7 +40,7 @@ export type TaskAttempt = { id: string, task_id: string, worktree_path: string, 
 
 export type CreateTaskAttempt = { task_id: string, worktree_path: string, merge_commit: string | null, executor: string | null, };
 
-export type UpdateTaskAttempt = { worktree_path: string | null, merge_commit: string | null, };
+export type UpdateTaskAttempt = Record<string, never>;
 
 export type TaskAttemptActivity = { id: string, task_attempt_id: string, status: TaskAttemptStatus, note: string | null, created_at: string, };
 

@@ -44,7 +44,7 @@ impl AppState {
             .any(|exec| exec.task_attempt_id == attempt_id)
     }
 
-    pub async fn get_running_executions_for_monitor(&self) -> Vec<(Uuid, Uuid, bool, Option<i32>)> {
+    pub async fn get_running_executions_for_monitor(&self) -> Vec<(Uuid, Uuid, bool, Option<i64>)> {
         let mut executions = self.running_executions.lock().await;
         let mut completed_executions = Vec::new();
 
@@ -52,7 +52,7 @@ impl AppState {
             match running_exec.child.try_wait() {
                 Ok(Some(status)) => {
                     let success = status.success();
-                    let exit_code = status.code();
+                    let exit_code = status.code().map(|c| c as i64);
                     completed_executions.push((
                         *execution_id,
                         running_exec.task_attempt_id,
