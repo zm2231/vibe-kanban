@@ -600,7 +600,12 @@ pub async fn delete_task_attempt_file(
             message: Some(format!("File '{}' deleted successfully", query.file_path)),
         })),
         Err(e) => {
-            tracing::error!("Failed to delete file '{}' from task attempt {}: {}", query.file_path, attempt_id, e);
+            tracing::error!(
+                "Failed to delete file '{}' from task attempt {}: {}",
+                query.file_path,
+                attempt_id,
+                e
+            );
             Ok(ResponseJson(ApiResponse {
                 success: false,
                 data: None,
