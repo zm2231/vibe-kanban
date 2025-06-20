@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, FileText, Code } from "lucide-react";
 import { makeRequest } from "@/lib/api";
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
+import { useKeyboardShortcuts } from "@/lib/keyboard-shortcuts";
 import type {
   TaskStatus,
   TaskAttempt,
@@ -92,6 +93,15 @@ export function TaskDetailsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+
+  // Setup keyboard shortcuts
+  useKeyboardShortcuts({
+    navigate,
+    currentPath: `/projects/${projectId}/tasks/${taskId}`,
+    hasOpenDialog: isTaskDialogOpen,
+    closeDialog: () => setIsTaskDialogOpen(false),
+    openCreateTask: () => {} // No task creation on task details page
+  });
 
   // Check if the selected attempt is active (not in a final state)
   const isAttemptRunning =
