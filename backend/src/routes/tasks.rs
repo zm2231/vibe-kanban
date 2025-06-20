@@ -421,35 +421,13 @@ pub async fn stop_task_attempt(
     }
 
     // Find and stop the running execution
-    let mut stopped = false;
-    {
-        let mut executions = app_state.running_executions.lock().await;
-        let mut execution_id_to_remove = None;
-
-        // Find the execution for this attempt
-        for (exec_id, execution) in executions.iter_mut() {
-            if execution.task_attempt_id == attempt_id {
-                // Kill the process
-                match execution.child.kill().await {
-                    Ok(_) => {
-                        stopped = true;
-                        execution_id_to_remove = Some(*exec_id);
-                        tracing::info!("Stopped execution for task attempt {}", attempt_id);
-                        break;
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to kill process for attempt {}: {}", attempt_id, e);
-                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
-                }
-            }
+    let stopped = match app_state.stop_running_execution(attempt_id).await {
+        Ok(stopped) => stopped,
+        Err(e) => {
+            tracing::error!("Failed to stop execution for attempt {}: {}", attempt_id, e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
-
-        // Remove the stopped execution from the map
-        if let Some(exec_id) = execution_id_to_remove {
-            executions.remove(&exec_id);
-        }
-    }
+    };
 
     if !stopped {
         return Ok(ResponseJson(ApiResponse {

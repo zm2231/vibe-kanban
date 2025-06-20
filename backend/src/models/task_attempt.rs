@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use super::project::Project;
 use super::task::Task;
+use crate::execution_monitor::ExecutionType;
 use crate::executor::ExecutorConfig;
 
 #[derive(Debug)]
@@ -587,17 +588,17 @@ impl TaskAttempt {
 
         // Add to running executions
         let execution_id = Uuid::new_v4();
-        {
-            let mut executions = app_state.running_executions.lock().await;
-            executions.insert(
+        app_state
+            .add_running_execution(
                 execution_id,
                 crate::execution_monitor::RunningExecution {
                     task_attempt_id: attempt_id,
+                    execution_type: ExecutionType::CodingAgent,
                     child,
                     started_at: chrono::Utc::now(),
                 },
-            );
-        }
+            )
+            .await;
 
         tracing::info!(
             "Started execution {} for task attempt {}",
