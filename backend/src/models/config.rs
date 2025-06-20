@@ -36,7 +36,7 @@ impl Config {
     pub fn load(config_path: &PathBuf) -> anyhow::Result<Self> {
         if config_path.exists() {
             let content = std::fs::read_to_string(config_path)?;
-            
+
             // Try to deserialize as is first
             match serde_json::from_str::<Config>(&content) {
                 Ok(config) => Ok(config),
@@ -56,30 +56,37 @@ impl Config {
     fn load_with_defaults(content: &str, config_path: &PathBuf) -> anyhow::Result<Self> {
         // Parse as generic JSON value
         let existing_value: serde_json::Value = serde_json::from_str(content)?;
-        
+
         // Get default config as JSON value
         let default_config = Config::default();
         let default_value = serde_json::to_value(&default_config)?;
-        
+
         // Merge existing config with defaults
         let merged_value = Self::merge_json_values(default_value, existing_value);
-        
+
         // Deserialize merged value back to Config
         let config: Config = serde_json::from_value(merged_value)?;
-        
+
         // Save the updated config with any missing defaults
         config.save(config_path)?;
-        
+
         Ok(config)
     }
 
-    fn merge_json_values(mut base: serde_json::Value, overlay: serde_json::Value) -> serde_json::Value {
+    fn merge_json_values(
+        mut base: serde_json::Value,
+        overlay: serde_json::Value,
+    ) -> serde_json::Value {
         match (&mut base, overlay) {
             (serde_json::Value::Object(base_map), serde_json::Value::Object(overlay_map)) => {
                 for (key, value) in overlay_map {
-                    base_map.entry(key).and_modify(|base_value| {
-                        *base_value = Self::merge_json_values(base_value.clone(), value.clone());
-                    }).or_insert(value);
+                    base_map
+                        .entry(key)
+                        .and_modify(|base_value| {
+                            *base_value =
+                                Self::merge_json_values(base_value.clone(), value.clone());
+                        })
+                        .or_insert(value);
                 }
                 base
             }
