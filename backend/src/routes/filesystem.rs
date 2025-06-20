@@ -66,7 +66,7 @@ pub async fn list_directory(
                             continue;
                         }
 
-                        let is_directory = metadata.map_or(false, |m| m.is_dir());
+                        let is_directory = metadata.is_some_and(|m| m.is_dir());
                         let is_git_repo = if is_directory {
                             path.join(".git").exists()
                         } else {

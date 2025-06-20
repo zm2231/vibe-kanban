@@ -161,7 +161,7 @@ impl AppState {
         F: FnOnce(&mut crate::models::config::Config),
     {
         let mut config = self.config.write().await;
-        update_fn(&mut *config);
+        update_fn(&mut config);
     }
 }
 

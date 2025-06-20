@@ -329,7 +329,7 @@ impl TaskAttempt {
         // Create the branch in main repo pointing to the final commit
         let branch_oid = main_repo.odb()?.write(
             git2::ObjectType::Commit,
-            &worktree_repo.odb()?.read(final_commit)?.data(),
+            worktree_repo.odb()?.read(final_commit)?.data(),
         )?;
 
         // Create reference in main repo

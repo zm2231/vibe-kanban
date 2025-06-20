@@ -6,12 +6,11 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use directories::ProjectDirs;
 use rust_embed::RustEmbed;
 use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use std::str::FromStr;
-use std::{collections::HashMap, env, sync::Arc};
-use tokio::sync::{Mutex, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 
 mod execution_monitor;
