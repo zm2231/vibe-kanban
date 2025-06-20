@@ -250,12 +250,18 @@ export function Settings() {
           </Card>
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Settings
-          </Button>
+        {/* Sticky save button */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4 z-10">
+          <div className="container mx-auto max-w-4xl flex justify-end">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Settings
+            </Button>
+          </div>
         </div>
+        
+        {/* Spacer to prevent content from being hidden behind sticky button */}
+        <div className="h-20"></div>
       </div>
     </div>
   );
