@@ -24,7 +24,7 @@ mod utils;
 use app_state::AppState;
 use execution_monitor::execution_monitor;
 use models::{ApiResponse, Config};
-use routes::{config, filesystem, health, projects, tasks};
+use routes::{config, filesystem, health, projects, task_attempts, tasks};
 
 #[derive(RustEmbed)]
 #[folder = "../frontend/dist"]
@@ -128,6 +128,7 @@ async fn main() -> anyhow::Result<()> {
             Router::new()
                 .merge(projects::projects_router())
                 .merge(tasks::tasks_router())
+                .merge(task_attempts::task_attempts_router())
                 .merge(filesystem::filesystem_router())
                 .merge(config::config_router()),
         )
