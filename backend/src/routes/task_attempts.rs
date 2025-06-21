@@ -431,6 +431,46 @@ pub async fn get_task_attempt_execution_processes(
     }
 }
 
+pub async fn get_execution_process(
+    Path((project_id, process_id)): Path<(Uuid, Uuid)>,
+    Extension(pool): Extension<SqlitePool>,
+) -> Result<ResponseJson<ApiResponse<ExecutionProcess>>, StatusCode> {
+    match ExecutionProcess::find_by_id(&pool, process_id).await {
+        Ok(Some(process)) => {
+            // Verify the process belongs to a task attempt in the correct project
+            match TaskAttempt::find_by_id(&pool, process.task_attempt_id).await {
+                Ok(Some(attempt)) => {
+                    match Task::find_by_id(&pool, attempt.task_id).await {
+                        Ok(Some(task)) if task.project_id == project_id => {
+                            Ok(ResponseJson(ApiResponse {
+                                success: true,
+                                data: Some(process),
+                                message: None,
+                            }))
+                        }
+                        Ok(Some(_)) => Err(StatusCode::NOT_FOUND), // Wrong project
+                        Ok(None) => Err(StatusCode::NOT_FOUND),
+                        Err(e) => {
+                            tracing::error!("Failed to fetch task: {}", e);
+                            Err(StatusCode::INTERNAL_SERVER_ERROR)
+                        }
+                    }
+                }
+                Ok(None) => Err(StatusCode::NOT_FOUND),
+                Err(e) => {
+                    tracing::error!("Failed to fetch task attempt: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        }
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            tracing::error!("Failed to fetch execution process {}: {}", process_id, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
 #[axum::debug_handler]
 pub async fn stop_execution_process(
     Path((project_id, task_id, attempt_id, process_id)): Path<(Uuid, Uuid, Uuid, Uuid)>,
@@ -608,5 +648,9 @@ pub fn task_attempts_router() -> Router {
         .route(
             "/projects/:project_id/tasks/:task_id/attempts/:attempt_id/execution-processes/:process_id/stop",
             post(stop_execution_process),
+        )
+        .route(
+            "/projects/:project_id/execution-processes/:process_id",
+            get(get_execution_process),
         )
 }

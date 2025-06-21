@@ -8,14 +8,13 @@ import {
   Code,
   ChevronDown,
   ChevronUp,
-  Plus,
-  Settings,
   Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Chip } from "@/components/ui/chip";
 
 import {
   DropdownMenu,
@@ -36,6 +35,7 @@ import type {
   TaskAttemptStatus,
   ApiResponse,
   TaskWithAttemptStatus,
+  ExecutionProcess,
 } from "shared/types";
 
 interface TaskDetailsPanelProps {
@@ -53,44 +53,61 @@ const statusLabels: Record<TaskStatus, string> = {
   cancelled: "Cancelled",
 };
 
+const getTaskStatusDotColor = (status: TaskStatus): string => {
+  switch (status) {
+    case "todo":
+      return "bg-gray-400";
+    case "inprogress":
+      return "bg-blue-500";
+    case "inreview":
+      return "bg-yellow-500";
+    case "done":
+      return "bg-green-500";
+    case "cancelled":
+      return "bg-red-500";
+    default:
+      return "bg-gray-400";
+  }
+};
+
 const getAttemptStatusDisplay = (
   status: TaskAttemptStatus
-): { label: string; className: string } => {
+): { label: string; dotColor: string } => {
   switch (status) {
     case "setuprunning":
       return {
         label: "Setup Running",
-        className: "bg-status-running text-status-running-foreground",
+        dotColor: "bg-blue-500",
       };
     case "setupcomplete":
       return {
         label: "Setup Complete",
-        className: "bg-status-complete text-status-complete-foreground",
+        dotColor: "bg-green-500",
       };
     case "setupfailed":
       return {
         label: "Setup Failed",
-        className: "bg-status-failed text-status-failed-foreground",
+        dotColor: "bg-red-500",
       };
     case "executorrunning":
       return {
         label: "Executor Running",
-        className: "bg-status-running text-status-running-foreground",
+        dotColor: "bg-blue-500",
       };
     case "executorcomplete":
       return {
         label: "Executor Complete",
-        className: "bg-status-complete text-status-complete-foreground",
+        dotColor: "bg-green-500",
       };
     case "executorfailed":
       return {
         label: "Executor Failed",
-        className: "bg-status-failed text-status-failed-foreground",
+        dotColor: "bg-red-500",
       };
     default:
       return {
         label: "Unknown",
-        className: "bg-status-init text-status-init-foreground",
+        dotColor: "bg-gray-400",
       };
   }
 };
@@ -108,6 +125,9 @@ export function TaskDetailsPanel({
   const [attemptActivities, setAttemptActivities] = useState<
     TaskAttemptActivity[]
   >([]);
+  const [executionProcesses, setExecutionProcesses] = useState<
+    Record<string, ExecutionProcess>
+  >({});
   const [loading, setLoading] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -196,10 +216,43 @@ export function TaskDetailsPanel({
           await response.json();
         if (result.success && result.data) {
           setAttemptActivities(result.data);
+
+          // Fetch execution processes for running activities
+          const runningActivities = result.data.filter(
+            (activity) =>
+              activity.status === "setuprunning" ||
+              activity.status === "executorrunning"
+          );
+
+          for (const activity of runningActivities) {
+            fetchExecutionProcess(activity.execution_process_id);
+          }
         }
       }
     } catch (err) {
       console.error("Failed to fetch attempt activities:", err);
+    }
+  };
+
+  const fetchExecutionProcess = async (processId: string) => {
+    if (!task) return;
+
+    try {
+      const response = await makeRequest(
+        `/api/projects/${projectId}/execution-processes/${processId}`
+      );
+
+      if (response.ok) {
+        const result: ApiResponse<ExecutionProcess> = await response.json();
+        if (result.success && result.data) {
+          setExecutionProcesses((prev) => ({
+            ...prev,
+            [processId]: result.data!,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch execution process:", err);
     }
   };
 
@@ -281,21 +334,9 @@ export function TaskDetailsPanel({
                       {task.title}
                     </h2>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          task.status === "todo"
-                            ? "bg-neutral text-neutral-foreground"
-                            : task.status === "inprogress"
-                            ? "bg-info text-info-foreground"
-                            : task.status === "inreview"
-                            ? "bg-warning text-warning-foreground"
-                            : task.status === "done"
-                            ? "bg-success text-success-foreground"
-                            : "bg-destructive text-destructive-foreground"
-                        }`}
-                      >
+                      <Chip dotColor={getTaskStatusDotColor(task.status)}>
                         {statusLabels[task.status]}
-                      </span>
+                      </Chip>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -307,7 +348,7 @@ export function TaskDetailsPanel({
 
                 {/* Description */}
                 <div>
-                  <div className="p-3 bg-muted rounded-md">
+                  <div className="p-3 bg-muted/30 rounded-md">
                     {task.description ? (
                       <div>
                         <p
@@ -498,36 +539,93 @@ export function TaskDetailsPanel({
                             No activities found
                           </div>
                         ) : (
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                             {attemptActivities.slice().map((activity) => (
-                              <Card key={activity.id} className="border">
-                                <CardContent className="p-4">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        getAttemptStatusDisplay(activity.status)
-                                          .className
-                                      }`}
-                                    >
-                                      {
-                                        getAttemptStatusDisplay(activity.status)
-                                          .label
-                                      }
-                                    </span>
-                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                      <Clock className="h-3 w-3" />
-                                      {new Date(
-                                        activity.created_at
-                                      ).toLocaleString()}
-                                    </div>
-                                  </div>
+                              <div key={activity.id}>
+                                {/* Compact activity message */}
+                                <div className="flex items-center gap-3 my-4 rounded-md">
+                                  <Chip
+                                    dotColor={
+                                      getAttemptStatusDisplay(activity.status)
+                                        .dotColor
+                                    }
+                                  >
+                                    {
+                                      getAttemptStatusDisplay(activity.status)
+                                        .label
+                                    }
+                                  </Chip>
                                   {activity.note && (
-                                    <p className="text-sm text-muted-foreground">
+                                    <span className="text-sm text-muted-foreground flex-1">
                                       {activity.note}
-                                    </p>
+                                    </span>
                                   )}
-                                </CardContent>
-                              </Card>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    {new Date(
+                                      activity.created_at
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      second: "2-digit",
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Show stdio output for running processes */}
+                                {(activity.status === "setuprunning" ||
+                                  activity.status === "executorrunning") &&
+                                  executionProcesses[
+                                    activity.execution_process_id
+                                  ] && (
+                                    <Card className="mt-2 bg-muted border-none">
+                                      <CardContent className="p-3">
+                                        {executionProcesses[
+                                          activity.execution_process_id
+                                        ].stdout && (
+                                          <div>
+                                            <pre className="text-xs rounded overflow-x-auto whitespace-pre-wrap mb-2">
+                                              {
+                                                executionProcesses[
+                                                  activity.execution_process_id
+                                                ].stdout
+                                              }
+                                            </pre>
+                                            <Chip dotColor="bg-green-600">
+                                              stdout
+                                            </Chip>
+                                          </div>
+                                        )}
+                                        {executionProcesses[
+                                          activity.execution_process_id
+                                        ].stderr && (
+                                          <div>
+                                            <pre className="text-xs rounded border overflow-x-auto whitespace-pre-wrap mb-2">
+                                              {
+                                                executionProcesses[
+                                                  activity.execution_process_id
+                                                ].stderr
+                                              }
+                                            </pre>
+                                            <Chip dotColor="bg-red-600">
+                                              stdout
+                                            </Chip>
+                                          </div>
+                                        )}
+                                        {!executionProcesses[
+                                          activity.execution_process_id
+                                        ].stdout &&
+                                          !executionProcesses[
+                                            activity.execution_process_id
+                                          ].stderr && (
+                                            <div className="text-xs text-muted-foreground italic">
+                                              Waiting for output...
+                                            </div>
+                                          )}
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                              </div>
                             ))}
                           </div>
                         )}
