@@ -25,6 +25,7 @@ fn main() {
         vibe_kanban::models::project::SearchResult::decl(),
         vibe_kanban::models::project::SearchMatchType::decl(),
         vibe_kanban::models::task::CreateTask::decl(),
+        vibe_kanban::models::task::CreateTaskAndStart::decl(),
         vibe_kanban::models::task::TaskStatus::decl(),
         vibe_kanban::models::task::Task::decl(),
         vibe_kanban::models::task::TaskWithAttemptStatus::decl(),

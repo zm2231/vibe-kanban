@@ -26,6 +26,8 @@ export type SearchMatchType = "FileName" | "DirectoryName" | "FullPath";
 
 export type CreateTask = { project_id: string, title: string, description: string | null, };
 
+export type CreateTaskAndStart = { project_id: string, title: string, description: string | null, executor: ExecutorConfig | null, };
+
 export type TaskStatus = "todo" | "inprogress" | "inreview" | "done" | "cancelled";
 
 export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, created_at: string, updated_at: string, };

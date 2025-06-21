@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::models::{
     project::Project,
-    task::{CreateTask, Task, TaskWithAttemptStatus, UpdateTask},
+    task::{CreateTask, CreateTaskAndStart, Task, TaskWithAttemptStatus, UpdateTask},
     task_attempt::{CreateTaskAttempt, TaskAttempt},
     ApiResponse,
 };
@@ -98,7 +98,7 @@ pub async fn create_task_and_start(
     Path(project_id): Path<Uuid>,
     Extension(pool): Extension<SqlitePool>,
     Extension(app_state): Extension<crate::app_state::AppState>,
-    Json(mut payload): Json<CreateTask>,
+    Json(mut payload): Json<CreateTaskAndStart>,
 ) -> Result<ResponseJson<ApiResponse<Task>>, StatusCode> {
     let task_id = Uuid::new_v4();
 
@@ -122,7 +122,12 @@ pub async fn create_task_and_start(
     );
 
     // Create the task first
-    let task = match Task::create(&pool, &payload, task_id).await {
+    let create_task_payload = CreateTask {
+        project_id: payload.project_id,
+        title: payload.title.clone(),
+        description: payload.description.clone(),
+    };
+    let task = match Task::create(&pool, &create_task_payload, task_id).await {
         Ok(task) => task,
         Err(e) => {
             tracing::error!("Failed to create task: {}", e);
@@ -132,8 +137,13 @@ pub async fn create_task_and_start(
 
     // Create task attempt
     let attempt_id = Uuid::new_v4();
+    let executor_string = payload.executor.as_ref().map(|exec| match exec {
+        crate::executor::ExecutorConfig::Echo => "echo".to_string(),
+        crate::executor::ExecutorConfig::Claude => "claude".to_string(),
+        crate::executor::ExecutorConfig::Amp => "amp".to_string(),
+    });
     let attempt_payload = CreateTaskAttempt {
-        executor: Some("claude".to_string()), // Default executor
+        executor: executor_string,
     };
 
     match TaskAttempt::create(&pool, &attempt_payload, attempt_id, task_id).await {

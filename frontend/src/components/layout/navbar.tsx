@@ -1,11 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FolderOpen, Settings } from "lucide-react";
+import { FolderOpen, Settings } from "lucide-react";
 import { Logo } from "@/components/logo";
 
 export function Navbar() {
   const location = useLocation();
-  const isHome = location.pathname === "/";
 
   return (
     <div className="border-b">

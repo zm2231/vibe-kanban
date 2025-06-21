@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import type { TaskStatus } from 'shared/types'
+import { useConfig } from '@/components/config-provider'
+import type { TaskStatus, ExecutorConfig } from 'shared/types'
 
 interface Task {
   id: string
@@ -34,7 +35,7 @@ interface TaskFormDialogProps {
   task?: Task | null // Optional for create mode
   projectId?: string // For file search functionality
   onCreateTask?: (title: string, description: string) => Promise<void>
-  onCreateAndStartTask?: (title: string, description: string) => Promise<void>
+  onCreateAndStartTask?: (title: string, description: string, executor?: ExecutorConfig) => Promise<void>
   onUpdateTask?: (title: string, description: string, status: TaskStatus) => Promise<void>
 }
 
@@ -53,6 +54,7 @@ export function TaskFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmittingAndStart, setIsSubmittingAndStart] = useState(false)
 
+  const { config } = useConfig()
   const isEditMode = Boolean(task)
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export function TaskFormDialog({
     setIsSubmittingAndStart(true)
     try {
       if (!isEditMode && onCreateAndStartTask) {
-        await onCreateAndStartTask(title, description)
+        await onCreateAndStartTask(title, description, config?.executor)
       }
       
       // Reset form on successful creation

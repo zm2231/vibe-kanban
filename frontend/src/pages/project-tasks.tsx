@@ -14,7 +14,13 @@ import {
 
 import { TaskKanbanBoard } from "@/components/tasks/TaskKanbanBoard";
 import { TaskDetailsPanel } from "@/components/tasks/TaskDetailsPanel";
-import type { TaskStatus, TaskWithAttemptStatus, Project } from "shared/types";
+import type {
+  TaskStatus,
+  TaskWithAttemptStatus,
+  Project,
+  ExecutorConfig,
+  CreateTaskAndStart,
+} from "shared/types";
 import type { DragEndEvent } from "@/components/ui/shadcn-io/kanban";
 
 type Task = TaskWithAttemptStatus;
@@ -26,7 +32,10 @@ interface ApiResponse<T> {
 }
 
 export function ProjectTasks() {
-  const { projectId, taskId } = useParams<{ projectId: string; taskId?: string }>();
+  const { projectId, taskId } = useParams<{
+    projectId: string;
+    taskId?: string;
+  }>();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [project, setProject] = useState<Project | null>(null);
@@ -73,7 +82,7 @@ export function ProjectTasks() {
   // Handle direct navigation to task URLs
   useEffect(() => {
     if (taskId && tasks.length > 0) {
-      const task = tasks.find(t => t.id === taskId);
+      const task = tasks.find((t) => t.id === taskId);
       if (task) {
         setSelectedTask(task);
         setIsPanelOpen(true);
@@ -115,15 +124,21 @@ export function ProjectTasks() {
             if (JSON.stringify(prevTasks) === JSON.stringify(newTasks)) {
               return prevTasks; // Return same reference to prevent re-render
             }
-            
+
             // Update selectedTask if it exists and has been modified
             if (selectedTask) {
-              const updatedSelectedTask = newTasks.find(task => task.id === selectedTask.id);
-              if (updatedSelectedTask && JSON.stringify(selectedTask) !== JSON.stringify(updatedSelectedTask)) {
+              const updatedSelectedTask = newTasks.find(
+                (task) => task.id === selectedTask.id
+              );
+              if (
+                updatedSelectedTask &&
+                JSON.stringify(selectedTask) !==
+                  JSON.stringify(updatedSelectedTask)
+              ) {
                 setSelectedTask(updatedSelectedTask);
               }
             }
-            
+
             return newTasks;
           });
         }
@@ -162,18 +177,22 @@ export function ProjectTasks() {
 
   const handleCreateAndStartTask = async (
     title: string,
-    description: string
+    description: string,
+    executor?: ExecutorConfig
   ) => {
     try {
+      const payload: CreateTaskAndStart = {
+        project_id: projectId!,
+        title,
+        description: description || null,
+        executor: executor || null,
+      };
+
       const response = await makeRequest(
         `/api/projects/${projectId}/tasks/create-and-start`,
         {
           method: "POST",
-          body: JSON.stringify({
-            project_id: projectId,
-            title,
-            description: description || null,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 

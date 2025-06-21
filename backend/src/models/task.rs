@@ -52,6 +52,15 @@ pub struct CreateTask {
 
 #[derive(Debug, Deserialize, TS)]
 #[ts(export)]
+pub struct CreateTaskAndStart {
+    pub project_id: Uuid,
+    pub title: String,
+    pub description: Option<String>,
+    pub executor: Option<crate::executor::ExecutorConfig>,
+}
+
+#[derive(Debug, Deserialize, TS)]
+#[ts(export)]
 pub struct UpdateTask {
     pub title: Option<String>,
     pub description: Option<String>,
