@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Chip } from "@/components/ui/chip";
 import { FileText, MessageSquare } from "lucide-react";
 import { ConversationViewer } from "./ConversationViewer";
 import type { ExecutionProcess } from "shared/types";

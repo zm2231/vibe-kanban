@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   X,
   History,
-  Send,
   Clock,
   FileText,
   Code,
@@ -15,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Chip } from "@/components/ui/chip";
 import { ExecutionOutputViewer } from "./ExecutionOutputViewer";
 
@@ -137,7 +135,6 @@ export function TaskDetailsPanel({
     Record<string, ExecutionProcess>
   >({});
   const [loading, setLoading] = useState(false);
-  const [followUpMessage, setFollowUpMessage] = useState("");
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [selectedExecutor, setSelectedExecutor] = useState<string>("claude");
   const { config } = useConfig();
@@ -278,12 +275,6 @@ export function TaskDetailsPanel({
       setSelectedAttempt(attempt);
       fetchAttemptActivities(attempt.id);
     }
-  };
-
-  const handleSendFollowUp = () => {
-    // TODO: Implement follow-up message API
-    console.log("Follow-up message:", followUpMessage);
-    setFollowUpMessage("");
   };
 
   const openInEditor = async () => {
@@ -429,11 +420,11 @@ export function TaskDetailsPanel({
                 {/* Attempt Selection */}
                 <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-md">
                   <div className="flex items-center gap-2 flex-1">
-                    <span className="text-sm text-muted-foreground">
-                      Current attempt:
-                    </span>
                     {selectedAttempt && (
                       <span className="text-sm font-medium">
+                        <span className="text-sm text-muted-foreground">
+                          Current attempt:{" "}
+                        </span>
                         {new Date(
                           selectedAttempt.created_at
                         ).toLocaleDateString()}{" "}

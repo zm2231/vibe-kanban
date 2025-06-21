@@ -26,7 +26,7 @@ interface ApiResponse<T> {
 }
 
 export function ProjectTasks() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId, taskId } = useParams<{ projectId: string; taskId?: string }>();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [project, setProject] = useState<Project | null>(null);
@@ -69,6 +69,17 @@ export function ProjectTasks() {
       return () => clearInterval(interval);
     }
   }, [projectId]);
+
+  // Handle direct navigation to task URLs
+  useEffect(() => {
+    if (taskId && tasks.length > 0) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        setSelectedTask(task);
+        setIsPanelOpen(true);
+      }
+    }
+  }, [taskId, tasks]);
 
   const fetchProject = async () => {
     try {
@@ -236,11 +247,15 @@ export function ProjectTasks() {
   const handleViewTaskDetails = (task: Task) => {
     setSelectedTask(task);
     setIsPanelOpen(true);
+    // Update URL to include task ID
+    navigate(`/projects/${projectId}/tasks/${task.id}`, { replace: true });
   };
 
   const handleClosePanel = () => {
     setIsPanelOpen(false);
     setSelectedTask(null);
+    // Remove task ID from URL when closing panel
+    navigate(`/projects/${projectId}/tasks`, { replace: true });
   };
 
   const handleProjectSettingsSuccess = () => {
