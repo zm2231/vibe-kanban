@@ -20,6 +20,9 @@ import type {
   TaskAttempt,
   TaskAttemptActivity,
   TaskAttemptStatus,
+  ExecutionProcess,
+  ExecutionProcessStatus,
+  ExecutionProcessType,
   Config,
   ApiResponse,
 } from "shared/types";
@@ -67,6 +70,34 @@ const getAttemptStatusDisplay = (status: TaskAttemptStatus): { label: string; cl
   }
 };
 
+const getProcessStatusDisplay = (status: ExecutionProcessStatus): { label: string; className: string } => {
+  switch (status) {
+    case "running":
+      return { label: "Running", className: "bg-status-running text-status-running-foreground" };
+    case "completed":
+      return { label: "Completed", className: "bg-status-complete text-status-complete-foreground" };
+    case "failed":
+      return { label: "Failed", className: "bg-status-failed text-status-failed-foreground" };
+    case "killed":
+      return { label: "Killed", className: "bg-status-failed text-status-failed-foreground" };
+    default:
+      return { label: "Unknown", className: "bg-status-init text-status-init-foreground" };
+  }
+};
+
+const getProcessTypeDisplay = (type: ExecutionProcessType): string => {
+  switch (type) {
+    case "setupscript":
+      return "Setup Script";
+    case "codingagent":
+      return "Coding Agent";
+    case "devserver":
+      return "Dev Server";
+    default:
+      return "Unknown";
+  }
+};
+
 export function TaskDetailsPage() {
   const { projectId, taskId } = useParams<{
     projectId: string;
@@ -86,9 +117,13 @@ export function TaskDetailsPage() {
     TaskAttemptActivity[]
   >([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [executionProcesses, setExecutionProcesses] = useState<
+    ExecutionProcess[]
+  >([]);
+  const [executionProcessesLoading, setExecutionProcessesLoading] = useState(false);
   const [selectedExecutor, setSelectedExecutor] = useState<string>("claude");
   const [creatingAttempt, setCreatingAttempt] = useState(false);
-  const [stoppingAttempt, setStoppingAttempt] = useState(false);
+  const [stoppingProcess, setStoppingProcess] = useState<string | null>(null);
   const [openingEditor, setOpeningEditor] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // const [outputViewMode, setOutputViewMode] = useState<'console' | 'json'>('console');
@@ -121,6 +156,7 @@ export function TaskDetailsPage() {
       fetchTaskAttempts(task.id, true); // Background update
       if (selectedAttempt) {
         fetchAttemptActivities(selectedAttempt.id, true); // Background update
+        fetchExecutionProcesses(selectedAttempt.id, true); // Background update
       }
     }, 2000);
 
@@ -225,6 +261,7 @@ export function TaskDetailsPage() {
             );
             setSelectedAttempt(latestAttempt);
             fetchAttemptActivities(latestAttempt.id);
+            fetchExecutionProcesses(latestAttempt.id);
           }
         }
       } else {
@@ -273,9 +310,43 @@ export function TaskDetailsPage() {
     }
   };
 
+  const fetchExecutionProcesses = async (
+    attemptId: string,
+    isBackgroundUpdate = false
+  ) => {
+    if (!task || !projectId) return;
+
+    try {
+      if (!isBackgroundUpdate) {
+        setExecutionProcessesLoading(true);
+      }
+
+      const response = await makeRequest(
+        `/api/projects/${projectId}/tasks/${task.id}/attempts/${attemptId}/execution-processes`
+      );
+
+      if (response.ok) {
+        const result: ApiResponse<ExecutionProcess[]> =
+          await response.json();
+        if (result.success && result.data) {
+          setExecutionProcesses(result.data);
+        }
+      } else {
+        setError("Failed to load execution processes");
+      }
+    } catch (err) {
+      setError("Failed to load execution processes");
+    } finally {
+      if (!isBackgroundUpdate) {
+        setExecutionProcessesLoading(false);
+      }
+    }
+  };
+
   const handleAttemptClick = (attempt: TaskAttempt) => {
     setSelectedAttempt(attempt);
     fetchAttemptActivities(attempt.id);
+    fetchExecutionProcesses(attempt.id);
   };
 
   const handleUpdateTaskFromDialog = async (
@@ -354,13 +425,15 @@ export function TaskDetailsPage() {
     }
   };
 
-  const stopTaskAttempt = async () => {
+
+
+  const stopExecutionProcess = async (processId: string) => {
     if (!task || !selectedAttempt || !projectId) return;
 
     try {
-      setStoppingAttempt(true);
+      setStoppingProcess(processId);
       const response = await makeRequest(
-        `/api/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/stop`,
+        `/api/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/execution-processes/${processId}/stop`,
         {
           method: "POST",
           headers: {
@@ -370,15 +443,16 @@ export function TaskDetailsPage() {
       );
 
       if (response.ok) {
-        // Refresh the activities list to show the stopped status
+        // Refresh the execution processes to show the stopped status
+        fetchExecutionProcesses(selectedAttempt.id);
         fetchAttemptActivities(selectedAttempt.id);
       } else {
-        setError("Failed to stop task attempt");
+        setError("Failed to stop execution process");
       }
     } catch (err) {
-      setError("Failed to stop task attempt");
+      setError("Failed to stop execution process");
     } finally {
-      setStoppingAttempt(false);
+      setStoppingProcess(null);
     }
   };
 
@@ -525,6 +599,140 @@ export function TaskDetailsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Execution Processes */}
+          {selectedAttempt && (
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Execution Processes</h3>
+                {executionProcessesLoading ? (
+                  <div className="text-center py-4">Loading processes...</div>
+                ) : executionProcesses.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No execution processes found
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {executionProcesses.map((process) => (
+                      <div
+                        key={process.id}
+                        className="border rounded-lg p-4 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                getProcessStatusDisplay(process.status).className
+                              }`}
+                            >
+                              {getProcessStatusDisplay(process.status).label}
+                            </span>
+                            <span className="font-medium">
+                              {getProcessTypeDisplay(process.process_type)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(process.started_at).toLocaleString()}
+                            </span>
+                            {process.status === "running" && (
+                              <Button
+                                onClick={() => stopExecutionProcess(process.id)}
+                                disabled={stoppingProcess === process.id}
+                                size="sm"
+                                variant="destructive"
+                              >
+                                {stoppingProcess === process.id ? "Stopping..." : "Stop"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Command</Label>
+                            <p className="font-mono bg-muted p-2 rounded text-xs">
+                              {process.command}
+                              {process.args && (() => {
+                                try {
+                                  return ` ${JSON.parse(process.args).join(' ')}`;
+                                } catch {
+                                  return ` ${process.args}`;
+                                }
+                              })()}
+                            </p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Working Directory</Label>
+                            <p className="font-mono bg-muted p-2 rounded text-xs">
+                              {process.working_directory}
+                            </p>
+                          </div>
+                        </div>
+
+                        {process.exit_code !== null && (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Exit Code</Label>
+                            <p className={`text-sm font-medium ${
+                              Number(process.exit_code) === 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {String(process.exit_code)}
+                            </p>
+                          </div>
+                        )}
+
+                        {process.completed_at && (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Completed At</Label>
+                            <p className="text-sm">
+                              {new Date(process.completed_at).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+
+                        {(process.stdout || process.stderr) && (
+                          <div className="space-y-3">
+                            {process.stdout && (
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-2 block">
+                                  STDOUT
+                                </Label>
+                                <div
+                                  className="bg-black text-green-400 border border-green-400 rounded-md p-3 font-mono text-xs max-h-48 overflow-y-auto whitespace-pre-wrap"
+                                  style={{
+                                    fontFamily:
+                                      'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                                  }}
+                                >
+                                  {process.stdout}
+                                </div>
+                              </div>
+                            )}
+                            {process.stderr && (
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-2 block">
+                                  STDERR
+                                </Label>
+                                <div
+                                  className="bg-black text-red-400 border border-red-400 rounded-md p-3 font-mono text-xs max-h-48 overflow-y-auto whitespace-pre-wrap"
+                                  style={{
+                                    fontFamily:
+                                      'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                                  }}
+                                >
+                                  {process.stderr}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* TODO: Task Attempt Output - migrate to use ExecutionProcess data */}
           {/* ExecutionProcess stdout/stderr display will be implemented when execution processes are exposed via API */}
@@ -827,17 +1035,6 @@ export function TaskDetailsPage() {
                           {openingEditor ? "Opening..." : "Open in Editor"}
                         </Button>
                       </>
-                    )}
-                    {isAttemptRunning && (
-                      <Button
-                        onClick={stopTaskAttempt}
-                        disabled={stoppingAttempt}
-                        size="sm"
-                        variant="destructive"
-                        className="w-full"
-                      >
-                        {stoppingAttempt ? "Stopping..." : "Stop Execution"}
-                      </Button>
                     )}
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">
