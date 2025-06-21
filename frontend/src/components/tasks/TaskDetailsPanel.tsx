@@ -29,6 +29,7 @@ import {
   getTaskPanelClasses,
   getBackdropClasses,
 } from "@/lib/responsive-config";
+import { useConfig } from "@/components/config-provider";
 import type {
   TaskStatus,
   TaskAttempt,
@@ -132,7 +133,8 @@ export function TaskDetailsPanel({
   const [loading, setLoading] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [selectedExecutor, setSelectedExecutor] = useState("claude");
+  const [selectedExecutor, setSelectedExecutor] = useState<string>("claude");
+  const { config } = useConfig();
 
   // Available executors
   const availableExecutors = [
@@ -161,6 +163,13 @@ export function TaskDetailsPanel({
 
     return () => clearInterval(interval);
   }, [isAttemptRunning, task?.id, selectedAttempt?.id]);
+
+  // Set default executor from config
+  useEffect(() => {
+    if (config) {
+      setSelectedExecutor(config.executor.type);
+    }
+  }, [config]);
 
   useEffect(() => {
     if (task && isOpen) {

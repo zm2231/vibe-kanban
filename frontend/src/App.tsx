@@ -7,52 +7,37 @@ import { TaskDetailsPage } from "@/pages/task-details";
 import { TaskAttemptComparePage } from "@/pages/task-attempt-compare";
 import { Settings } from "@/pages/Settings";
 import { DisclaimerDialog } from "@/components/DisclaimerDialog";
+import { ConfigProvider, useConfig } from "@/components/config-provider";
 import type { Config, ApiResponse } from "shared/types";
 
 function AppContent() {
-  const [config, setConfig] = useState<Config | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { config, updateConfig, loading } = useConfig();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const showNavbar = true;
 
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const response = await fetch("/api/config");
-        const data: ApiResponse<Config> = await response.json();
-
-        if (data.success && data.data) {
-          setConfig(data.data);
-          setShowDisclaimer(!data.data.disclaimer_acknowledged);
-        }
-      } catch (err) {
-        console.error("Error loading config:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadConfig();
-  }, []);
+    if (config) {
+      setShowDisclaimer(!config.disclaimer_acknowledged);
+    }
+  }, [config]);
 
   const handleDisclaimerAccept = async () => {
     if (!config) return;
 
-    const updatedConfig = { ...config, disclaimer_acknowledged: true };
-
+    updateConfig({ disclaimer_acknowledged: true });
+    
     try {
       const response = await fetch("/api/config", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(updatedConfig),
+        body: JSON.stringify({ ...config, disclaimer_acknowledged: true }),
       });
 
       const data: ApiResponse<Config> = await response.json();
 
       if (data.success) {
-        setConfig(updatedConfig);
         setShowDisclaimer(false);
       }
     } catch (err) {
@@ -102,7 +87,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <ConfigProvider>
+        <AppContent />
+      </ConfigProvider>
     </BrowserRouter>
   );
 }
