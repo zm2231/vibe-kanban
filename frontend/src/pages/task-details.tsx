@@ -49,8 +49,6 @@ const statusLabels: Record<TaskStatus, string> = {
 
 const getAttemptStatusDisplay = (status: TaskAttemptStatus): { label: string; className: string } => {
   switch (status) {
-    case "init":
-      return { label: "Init", className: "bg-status-init text-status-init-foreground" };
     case "setuprunning":
       return { label: "Setup Running", className: "bg-status-running text-status-running-foreground" };
     case "setupcomplete":
@@ -63,8 +61,6 @@ const getAttemptStatusDisplay = (status: TaskAttemptStatus): { label: string; cl
       return { label: "Executor Complete", className: "bg-status-complete text-status-complete-foreground" };
     case "executorfailed":
       return { label: "Executor Failed", className: "bg-status-failed text-status-failed-foreground" };
-    case "paused":
-      return { label: "Paused", className: "bg-status-paused text-status-paused-foreground" };
     default:
       return { label: "Unknown", className: "bg-status-init text-status-init-foreground" };
   }
@@ -143,8 +139,7 @@ export function TaskDetailsPage() {
   const isAttemptRunning =
     selectedAttempt &&
     attemptActivities.length > 0 &&
-    (attemptActivities[0].status === "init" ||
-      attemptActivities[0].status === "setuprunning" ||
+    (attemptActivities[0].status === "setuprunning" ||
       attemptActivities[0].status === "setupcomplete" ||
       attemptActivities[0].status === "executorrunning");
 

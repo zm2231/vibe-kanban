@@ -9,6 +9,8 @@ import {
   ChevronDown,
   ChevronUp,
   Plus,
+  Settings,
+  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,13 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 import { makeRequest } from "@/lib/api";
 import {
@@ -62,11 +57,6 @@ const getAttemptStatusDisplay = (
   status: TaskAttemptStatus
 ): { label: string; className: string } => {
   switch (status) {
-    case "init":
-      return {
-        label: "Init",
-        className: "bg-status-init text-status-init-foreground",
-      };
     case "setuprunning":
       return {
         label: "Setup Running",
@@ -97,11 +87,6 @@ const getAttemptStatusDisplay = (
         label: "Executor Failed",
         className: "bg-status-failed text-status-failed-foreground",
       };
-    case "paused":
-      return {
-        label: "Paused",
-        className: "bg-status-paused text-status-paused-foreground",
-      };
     default:
       return {
         label: "Unknown",
@@ -126,13 +111,20 @@ export function TaskDetailsPanel({
   const [loading, setLoading] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [selectedExecutor, setSelectedExecutor] = useState("claude");
+
+  // Available executors
+  const availableExecutors = [
+    { id: "echo", name: "Echo" },
+    { id: "claude", name: "Claude" },
+    { id: "amp", name: "Amp" },
+  ];
 
   // Check if the selected attempt is active (not in a final state)
   const isAttemptRunning =
     selectedAttempt &&
     attemptActivities.length > 0 &&
-    (attemptActivities[0].status === "init" ||
-      attemptActivities[0].status === "setuprunning" ||
+    (attemptActivities[0].status === "setuprunning" ||
       attemptActivities[0].status === "setupcomplete" ||
       attemptActivities[0].status === "executorrunning");
 
@@ -243,7 +235,7 @@ export function TaskDetailsPanel({
     }
   };
 
-  const createNewAttempt = async () => {
+  const createNewAttempt = async (executor?: string) => {
     if (!task) return;
 
     try {
@@ -254,6 +246,9 @@ export function TaskDetailsPanel({
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            executor: executor || selectedExecutor,
+          }),
         }
       );
 
@@ -377,8 +372,7 @@ export function TaskDetailsPanel({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm">
-                              <History className="h-4 w-4 mr-1" />
-                              History
+                              <History className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-64">
@@ -410,23 +404,49 @@ export function TaskDetailsPanel({
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                      <div className="flex">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => createNewAttempt()}
+                          className="rounded-r-none border-r-0"
+                        >
+                          Attempt with{" "}
+                          {
+                            availableExecutors.find(
+                              (e) => e.id === selectedExecutor
+                            )?.name
+                          }
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
                               variant="outline"
-                              size="default"
-                              onClick={createNewAttempt}
-                              className="h-9 w-9 p-0"
+                              size="sm"
+                              className="rounded-l-none px-2"
                             >
-                              <Plus className="h-4 w-4" />
+                              <Settings2 className="h-4 w-4" />
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Create new attempt</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {availableExecutors.map((executor) => (
+                              <DropdownMenuItem
+                                key={executor.id}
+                                onClick={() => setSelectedExecutor(executor.id)}
+                                className={
+                                  selectedExecutor === executor.id
+                                    ? "bg-accent"
+                                    : ""
+                                }
+                              >
+                                {executor.name}
+                                {selectedExecutor === executor.id &&
+                                  " (Default)"}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
 
@@ -479,7 +499,7 @@ export function TaskDetailsPanel({
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {attemptActivities.slice().reverse().map((activity) => (
+                            {attemptActivities.slice().map((activity) => (
                               <Card key={activity.id} className="border">
                                 <CardContent className="p-4">
                                   <div className="flex items-center justify-between mb-2">
