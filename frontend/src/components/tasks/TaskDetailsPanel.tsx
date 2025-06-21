@@ -11,10 +11,11 @@ import {
   Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Chip } from "@/components/ui/chip";
+import { ExecutionOutputViewer } from "./ExecutionOutputViewer";
 
 import {
   DropdownMenu,
@@ -578,52 +579,12 @@ export function TaskDetailsPanel({
                                   executionProcesses[
                                     activity.execution_process_id
                                   ] && (
-                                    <Card className="mt-2 bg-muted border-none">
-                                      <CardContent className="p-3">
-                                        {executionProcesses[
-                                          activity.execution_process_id
-                                        ].stdout && (
-                                          <div>
-                                            <pre className="text-xs rounded overflow-x-auto whitespace-pre-wrap mb-2">
-                                              {
-                                                executionProcesses[
-                                                  activity.execution_process_id
-                                                ].stdout
-                                              }
-                                            </pre>
-                                            <Chip dotColor="bg-green-600">
-                                              stdout
-                                            </Chip>
-                                          </div>
-                                        )}
-                                        {executionProcesses[
-                                          activity.execution_process_id
-                                        ].stderr && (
-                                          <div>
-                                            <pre className="text-xs rounded border overflow-x-auto whitespace-pre-wrap mb-2">
-                                              {
-                                                executionProcesses[
-                                                  activity.execution_process_id
-                                                ].stderr
-                                              }
-                                            </pre>
-                                            <Chip dotColor="bg-red-600">
-                                              stdout
-                                            </Chip>
-                                          </div>
-                                        )}
-                                        {!executionProcesses[
-                                          activity.execution_process_id
-                                        ].stdout &&
-                                          !executionProcesses[
-                                            activity.execution_process_id
-                                          ].stderr && (
-                                            <div className="text-xs text-muted-foreground italic">
-                                              Waiting for output...
-                                            </div>
-                                          )}
-                                      </CardContent>
-                                    </Card>
+                                    <div className="mt-2">
+                                      <ExecutionOutputViewer
+                                        executionProcess={executionProcesses[activity.execution_process_id]}
+                                        executor={selectedAttempt?.executor || undefined}
+                                      />
+                                    </div>
                                   )}
                               </div>
                             ))}
