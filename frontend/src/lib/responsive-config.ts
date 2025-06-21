@@ -54,7 +54,7 @@ export const getMainContainerClasses = (isPanelOpen: boolean) => {
 
 // Generate classes for kanban section
 export const getKanbanSectionClasses = (isPanelOpen: boolean) => {
-  if (!isPanelOpen) return "w-full transition-all duration-300";
+  if (!isPanelOpen) return "w-full";
 
   const overlayClasses = "w-full opacity-50 pointer-events-none";
   const sideBySideClasses = [
@@ -66,5 +66,5 @@ export const getKanbanSectionClasses = (isPanelOpen: boolean) => {
     `${PANEL_SIDE_BY_SIDE_BREAKPOINT}:pointer-events-auto`,
   ].join(" ");
 
-  return `${overlayClasses} ${sideBySideClasses} transition-all duration-300`;
+  return `${overlayClasses} ${sideBySideClasses}`;
 };

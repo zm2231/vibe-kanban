@@ -6,7 +6,10 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { makeRequest } from "@/lib/api";
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
 import { useKeyboardShortcuts } from "@/lib/keyboard-shortcuts";
-import { getMainContainerClasses, getKanbanSectionClasses } from "@/lib/responsive-config";
+import {
+  getMainContainerClasses,
+  getKanbanSectionClasses,
+} from "@/lib/responsive-config";
 
 import { TaskKanbanBoard } from "@/components/tasks/TaskKanbanBoard";
 import { TaskDetailsPanel } from "@/components/tasks/TaskDetailsPanel";
@@ -237,8 +240,6 @@ export function ProjectTasks() {
     setSelectedTask(null);
   };
 
-
-
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -298,16 +299,11 @@ export function ProjectTasks() {
   }
 
   return (
-    <div
-      className={getMainContainerClasses(isPanelOpen)}
-    >
+    <div className={getMainContainerClasses(isPanelOpen)}>
       {/* Left Column - Kanban Section */}
-      <div
-        className={getKanbanSectionClasses(isPanelOpen)}
-      >
-        <div className="space-y-6 max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between">
+      <div className={getKanbanSectionClasses(isPanelOpen)}>
+        {/* Header */}
+        {/* <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
@@ -316,7 +312,7 @@ export function ProjectTasks() {
                 className="flex items-center"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Projects
+                Projects
               </Button>
               <div>
                 <h1 className="text-2xl font-bold">
@@ -332,18 +328,27 @@ export function ProjectTasks() {
               <Plus className="h-4 w-4 mr-2" />
               Add Task
             </Button>
-          </div>
+          </div> */}
 
-          <TaskFormDialog
-            isOpen={isTaskDialogOpen}
-            onOpenChange={setIsTaskDialogOpen}
-            task={editingTask}
-            projectId={projectId}
-            onCreateTask={handleCreateTask}
-            onCreateAndStartTask={handleCreateAndStartTask}
-            onUpdateTask={handleUpdateTask}
-          />
+        <div className="px-8 my-12 flex flex-row">
+          <div className="w-full">
+            <h1 className="text-2xl font-bold">{project?.name || "Project"}</h1>
+          </div>
+          <Button onClick={handleCreateNewTask}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task
+          </Button>
         </div>
+
+        <TaskFormDialog
+          isOpen={isTaskDialogOpen}
+          onOpenChange={setIsTaskDialogOpen}
+          task={editingTask}
+          projectId={projectId}
+          onCreateTask={handleCreateTask}
+          onCreateAndStartTask={handleCreateAndStartTask}
+          onUpdateTask={handleUpdateTask}
+        />
 
         {/* Tasks View */}
         {tasks.length === 0 ? (
@@ -361,14 +366,16 @@ export function ProjectTasks() {
             </Card>
           </div>
         ) : (
-          <div className="px-4 scroll">
-            <TaskKanbanBoard
-              tasks={tasks}
-              onDragEnd={handleDragEnd}
-              onEditTask={handleEditTask}
-              onDeleteTask={handleDeleteTask}
-              onViewTaskDetails={handleViewTaskDetails}
-            />
+          <div className="px-8 overflow-x-scroll my-4">
+            <div className="min-w-[900px] max-w-[2000px] relative">
+              <TaskKanbanBoard
+                tasks={tasks}
+                onDragEnd={handleDragEnd}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onViewTaskDetails={handleViewTaskDetails}
+              />
+            </div>
           </div>
         )}
       </div>
