@@ -73,10 +73,7 @@ pub struct TaskAttempt {
 #[derive(Debug, Deserialize, TS)]
 #[ts(export)]
 pub struct CreateTaskAttempt {
-    pub task_id: Uuid,
-    pub worktree_path: String,
-    pub merge_commit: Option<String>,
-    pub executor: Option<String>,
+    pub executor: Option<String>, // Optional executor name (defaults to "echo")
 }
 
 #[derive(Debug, Deserialize, TS)]
@@ -156,9 +153,10 @@ impl TaskAttempt {
         pool: &SqlitePool,
         data: &CreateTaskAttempt,
         attempt_id: Uuid,
+        task_id: Uuid,
     ) -> Result<Self, TaskAttemptError> {
         // First, get the task to get the project_id
-        let task = Task::find_by_id(pool, data.task_id)
+        let task = Task::find_by_id(pool, task_id)
             .await?
             .ok_or(TaskAttemptError::TaskNotFound)?;
 
@@ -167,9 +165,12 @@ impl TaskAttempt {
             .await?
             .ok_or(TaskAttemptError::ProjectNotFound)?;
 
+        // Generate worktree path automatically
+        let worktree_path_str = format!("/tmp/mission-control-worktree-{}", attempt_id);
+        let worktree_path = Path::new(&worktree_path_str);
+
         // Create the worktree using git2
         let repo = Repository::open(&project.git_repo_path)?;
-        let worktree_path = Path::new(&data.worktree_path);
 
         // We no longer store base_commit in the database - it's retrieved live via git2
 
@@ -190,9 +191,9 @@ impl TaskAttempt {
                VALUES ($1, $2, $3, $4, $5) 
                RETURNING id as "id!: Uuid", task_id as "task_id!: Uuid", worktree_path, merge_commit, executor, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
             attempt_id,
-            data.task_id,
-            data.worktree_path,
-            data.merge_commit,
+            task_id,
+            worktree_path_str,
+            Option::<String>::None, // merge_commit is always None during creation
             data.executor
         )
         .fetch_one(pool)

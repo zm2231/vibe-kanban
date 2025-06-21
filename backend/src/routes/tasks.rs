@@ -132,23 +132,11 @@ pub async fn create_task_and_start(
 
     // Create task attempt
     let attempt_id = Uuid::new_v4();
-    let worktree_path = format!(
-        "/tmp/task-{}-attempt-{}",
-        task_id,
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis()
-    );
-
     let attempt_payload = CreateTaskAttempt {
-        task_id,
-        worktree_path,
-        merge_commit: None,
         executor: Some("claude".to_string()), // Default executor
     };
 
-    match TaskAttempt::create(&pool, &attempt_payload, attempt_id).await {
+    match TaskAttempt::create(&pool, &attempt_payload, attempt_id, task_id).await {
         Ok(attempt) => {
             // Start execution asynchronously (don't block the response)
             let pool_clone = pool.clone();

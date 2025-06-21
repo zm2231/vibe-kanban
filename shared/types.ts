@@ -34,17 +34,17 @@ export type TaskWithAttemptStatus = { id: string, project_id: string, title: str
 
 export type UpdateTask = { title: string | null, description: string | null, status: TaskStatus | null, };
 
-export type TaskAttemptStatus = "init" | "setuprunning" | "setupcomplete" | "setupfailed" | "executorrunning" | "executorcomplete" | "executorfailed" | "paused";
+export type TaskAttemptStatus = "setuprunning" | "setupcomplete" | "setupfailed" | "executorrunning" | "executorcomplete" | "executorfailed";
 
 export type TaskAttempt = { id: string, task_id: string, worktree_path: string, merge_commit: string | null, executor: string | null, created_at: string, updated_at: string, };
 
-export type CreateTaskAttempt = { task_id: string, worktree_path: string, merge_commit: string | null, executor: string | null, };
+export type CreateTaskAttempt = { executor: string | null, };
 
 export type UpdateTaskAttempt = Record<string, never>;
 
-export type TaskAttemptActivity = { id: string, task_attempt_id: string, status: TaskAttemptStatus, note: string | null, created_at: string, };
+export type TaskAttemptActivity = { id: string, execution_process_id: string, status: TaskAttemptStatus, note: string | null, created_at: string, };
 
-export type CreateTaskAttemptActivity = { task_attempt_id: string, status: TaskAttemptStatus | null, note: string | null, };
+export type CreateTaskAttemptActivity = { execution_process_id: string, status: TaskAttemptStatus | null, note: string | null, };
 
 export type DirectoryEntry = { name: string, path: string, is_directory: boolean, is_git_repo: boolean, };
 

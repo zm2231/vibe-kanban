@@ -113,7 +113,7 @@ pub async fn create_task_attempt(
     Path((project_id, task_id)): Path<(Uuid, Uuid)>,
     Extension(pool): Extension<SqlitePool>,
     Extension(app_state): Extension<crate::app_state::AppState>,
-    Json(mut payload): Json<CreateTaskAttempt>,
+    Json(payload): Json<CreateTaskAttempt>,
 ) -> Result<ResponseJson<ApiResponse<TaskAttempt>>, StatusCode> {
     // Verify task exists in project first
     match Task::exists(&pool, task_id, project_id).await {
@@ -127,10 +127,7 @@ pub async fn create_task_attempt(
 
     let id = Uuid::new_v4();
 
-    // Ensure the task_id in the payload matches the path parameter
-    payload.task_id = task_id;
-
-    match TaskAttempt::create(&pool, &payload, id).await {
+    match TaskAttempt::create(&pool, &payload, id, task_id).await {
         Ok(attempt) => {
             // Start execution asynchronously (don't block the response)
             let pool_clone = pool.clone();
