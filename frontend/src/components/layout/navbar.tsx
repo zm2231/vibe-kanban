@@ -40,16 +40,6 @@ export function Navbar() {
               </Button>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            {!isHome && (
-              <Button asChild variant="ghost">
-                <Link to="/">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Home
-                </Link>
-              </Button>
-            )}
-          </div>
         </div>
       </div>
     </div>

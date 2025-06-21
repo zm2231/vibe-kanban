@@ -203,6 +203,11 @@ export function TaskDetailsPanel({
             );
             setSelectedAttempt(latestAttempt);
             fetchAttemptActivities(latestAttempt.id);
+          } else {
+            // Clear state when no attempts exist
+            setSelectedAttempt(null);
+            setAttemptActivities([]);
+            setExecutionProcesses({});
           }
         }
       }
@@ -477,7 +482,8 @@ export function TaskDetailsPanel({
                           onClick={() => createNewAttempt()}
                           className="rounded-r-none border-r-0"
                         >
-                          Attempt with{" "}
+                          {selectedAttempt ? "Retry " : "Attempt "}
+                          with{" "}
                           {
                             availableExecutors.find(
                               (e) => e.id === selectedExecutor

@@ -1,80 +1,100 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Project, ApiResponse } from 'shared/types'
-import { ProjectForm } from './project-form'
-import { makeRequest } from '@/lib/api'
-import { Plus, Edit, Trash2, Calendar, AlertCircle, Loader2, MoreHorizontal, ExternalLink } from 'lucide-react'
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Project, ApiResponse } from "shared/types";
+import { ProjectForm } from "./project-form";
+import { makeRequest } from "@/lib/api";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Calendar,
+  AlertCircle,
+  Loader2,
+  MoreHorizontal,
+  ExternalLink,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 
 export function ProjectList() {
-  const navigate = useNavigate()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(false)
-  const [showForm, setShowForm] = useState(false)
-  const [editingProject, setEditingProject] = useState<Project | null>(null)
-  const [error, setError] = useState('')
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [error, setError] = useState("");
 
   const fetchProjects = async () => {
-    setLoading(true)
-    setError('')
+    setLoading(true);
+    setError("");
     try {
-      const response = await makeRequest('/api/projects')
-      const data: ApiResponse<Project[]> = await response.json()
+      const response = await makeRequest("/api/projects");
+      const data: ApiResponse<Project[]> = await response.json();
       if (data.success && data.data) {
-        setProjects(data.data)
+        setProjects(data.data);
       } else {
-        setError('Failed to load projects')
+        setError("Failed to load projects");
       }
     } catch (error) {
-      console.error('Failed to fetch projects:', error)
-      setError('Failed to connect to server')
+      console.error("Failed to fetch projects:", error);
+      setError("Failed to connect to server");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return
+    if (
+      !confirm(
+        `Are you sure you want to delete "${name}"? This action cannot be undone.`
+      )
+    )
+      return;
 
     try {
       const response = await makeRequest(`/api/projects/${id}`, {
-        method: 'DELETE',
-      })
+        method: "DELETE",
+      });
       if (response.ok) {
-        fetchProjects()
+        fetchProjects();
       }
     } catch (error) {
-      console.error('Failed to delete project:', error)
-      setError('Failed to delete project')
+      console.error("Failed to delete project:", error);
+      setError("Failed to delete project");
     }
-  }
+  };
 
   const handleEdit = (project: Project) => {
-    setEditingProject(project)
-    setShowForm(true)
-  }
+    setEditingProject(project);
+    setShowForm(true);
+  };
 
   const handleFormSuccess = () => {
-    setShowForm(false)
-    setEditingProject(null)
-    fetchProjects()
-  }
+    setShowForm(false);
+    setEditingProject(null);
+    fetchProjects();
+  };
 
   useEffect(() => {
-    fetchProjects()
-  }, [])
+    fetchProjects();
+  }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-8">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
@@ -91,9 +111,7 @@ export function ProjectList() {
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error}
-          </AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
@@ -112,10 +130,7 @@ export function ProjectList() {
             <p className="mt-2 text-sm text-muted-foreground">
               Get started by creating your first project.
             </p>
-            <Button
-              className="mt-4"
-              onClick={() => setShowForm(true)}
-            >
+            <Button className="mt-4" onClick={() => setShowForm(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create your first project
             </Button>
@@ -124,22 +139,21 @@ export function ProjectList() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <Card 
-              key={project.id} 
+            <Card
+              key={project.id}
               className="hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => navigate(`/projects/${project.id}/tasks`)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">
-                    {project.name}
-                  </CardTitle>
+                  <CardTitle className="text-lg">{project.name}</CardTitle>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">
-                      Active
-                    </Badge>
+                    <Badge variant="secondary">Active</Badge>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuTrigger
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Button
                           variant="ghost"
                           size="sm"
@@ -149,24 +163,28 @@ export function ProjectList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation()
-                          navigate(`/projects/${project.id}`)
-                        }}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/projects/${project.id}`);
+                          }}
+                        >
                           <ExternalLink className="mr-2 h-4 w-4" />
                           View Project
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation()
-                          handleEdit(project)
-                        }}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(project);
+                          }}
+                        >
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(project.id, project.name)
+                            e.stopPropagation();
+                            handleDelete(project.id, project.name);
                           }}
                           className="text-destructive"
                         >
@@ -190,12 +208,12 @@ export function ProjectList() {
       <ProjectForm
         open={showForm}
         onClose={() => {
-          setShowForm(false)
-          setEditingProject(null)
+          setShowForm(false);
+          setEditingProject(null);
         }}
         onSuccess={handleFormSuccess}
         project={editingProject}
       />
     </div>
-  )
+  );
 }
