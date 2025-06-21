@@ -218,41 +218,37 @@ pub async fn execution_monitor(app_state: AppState) {
             };
 
         for process_id in executor_running_process_ids {
-            // Double-check that this process is not currently running and hasn't just completed
-            if !app_state.has_running_execution(process_id).await {
-                // Get the execution process to find the task attempt ID
-                let task_attempt_id =
-                    match ExecutionProcess::find_by_id(&app_state.db_pool, process_id).await {
-                        Ok(Some(process)) => {
-                            // Additional check: if the process was recently updated, skip it
-                            // This prevents race conditions with recent completions
-                            let now = chrono::Utc::now();
-                            let time_since_update = now - process.updated_at;
-                            if time_since_update.num_seconds() < 10 {
-                                // Process was updated within last 10 seconds, likely just completed
-                                tracing::debug!(
-                                    "Skipping recently updated process {} (updated {} seconds ago)",
-                                    process_id,
-                                    time_since_update.num_seconds()
-                                );
-                                continue;
-                            }
-                            process.task_attempt_id
-                        }
-                        Ok(None) => {
-                            tracing::error!("Execution process {} not found", process_id);
-                            continue;
-                        }
-                        Err(e) => {
-                            tracing::error!(
-                                "Failed to fetch execution process {}: {}",
+            // Get the execution process to find the task attempt ID
+            let task_attempt_id =
+                match ExecutionProcess::find_by_id(&app_state.db_pool, process_id).await {
+                    Ok(Some(process)) => {
+                        // Additional check: if the process was recently updated, skip it
+                        // This prevents race conditions with recent completions
+                        let now = chrono::Utc::now();
+                        let time_since_update = now - process.updated_at;
+                        if time_since_update.num_seconds() < 10 {
+                            // Process was updated within last 10 seconds, likely just completed
+                            tracing::debug!(
+                                "Skipping recently updated process {} (updated {} seconds ago)",
                                 process_id,
-                                e
+                                time_since_update.num_seconds()
                             );
                             continue;
                         }
-                    };
+                        process.task_attempt_id
+                    }
+                    Ok(None) => {
+                        tracing::error!("Execution process {} not found", process_id);
+                        continue;
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to fetch execution process {}: {}", process_id, e);
+                        continue;
+                    }
+                };
 
+            // Double-check that this task attempt is not currently running and hasn't just completed
+            if !app_state.has_running_execution(task_attempt_id).await {
                 // This is truly an orphaned task attempt - mark it as failed
                 let activity_id = Uuid::new_v4();
                 let create_activity = CreateTaskAttemptActivity {

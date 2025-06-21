@@ -44,6 +44,7 @@ echo "Task completed: {}""#,
             .stderr(std::process::Stdio::piped())
             .arg("-c")
             .arg(&script)
+            .process_group(0) // Create new process group so we can kill entire tree
             .spawn()
             .map_err(ExecutorError::SpawnFailed)?;
 

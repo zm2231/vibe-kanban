@@ -42,6 +42,7 @@ impl Executor for ClaudeExecutor {
             .arg("--dangerously-skip-permissions")
             .arg("--verbose")
             .arg("--output-format=stream-json")
+            .process_group(0) // Create new process group so we can kill entire tree
             .spawn()
             .map_err(ExecutorError::SpawnFailed)?;
 

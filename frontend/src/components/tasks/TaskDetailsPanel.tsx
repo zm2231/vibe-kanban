@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   X,
   History,
@@ -10,6 +10,7 @@ import {
   Settings2,
   Edit,
   Trash2,
+  StopCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -137,6 +138,7 @@ export function TaskDetailsPanel({
   const [loading, setLoading] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [selectedExecutor, setSelectedExecutor] = useState<string>("claude");
+  const [isStopping, setIsStopping] = useState(false);
   const { config } = useConfig();
 
   // Available executors
@@ -146,13 +148,30 @@ export function TaskDetailsPanel({
     { id: "amp", name: "Amp" },
   ];
 
-  // Check if the selected attempt is active (not in a final state)
-  const isAttemptRunning =
-    selectedAttempt &&
-    attemptActivities.length > 0 &&
-    (attemptActivities[0].status === "setuprunning" ||
-      attemptActivities[0].status === "setupcomplete" ||
-      attemptActivities[0].status === "executorrunning");
+  // Check if any execution process is currently running
+  // We need to check the latest activity for each execution process
+  const isAttemptRunning = useMemo(() => {
+    if (!selectedAttempt || attemptActivities.length === 0 || isStopping) {
+      return false;
+    }
+
+    // Group activities by execution_process_id and get the latest one for each
+    const latestActivitiesByProcess = new Map<string, TaskAttemptActivity>();
+    
+    attemptActivities.forEach((activity) => {
+      const existing = latestActivitiesByProcess.get(activity.execution_process_id);
+      if (!existing || new Date(activity.created_at) > new Date(existing.created_at)) {
+        latestActivitiesByProcess.set(activity.execution_process_id, activity);
+      }
+    });
+
+    // Check if any execution process has a running status as its latest activity
+    return Array.from(latestActivitiesByProcess.values()).some(
+      (activity) =>
+        activity.status === "setuprunning" ||
+        activity.status === "executorrunning"
+    );
+  }, [selectedAttempt, attemptActivities, isStopping]);
 
   // Polling for updates when attempt is running
   useEffect(() => {
@@ -323,6 +342,38 @@ export function TaskDetailsPanel({
       }
     } catch (err) {
       console.error("Failed to create new attempt:", err);
+    }
+  };
+
+  const stopAllExecutions = async () => {
+    if (!task || !selectedAttempt) return;
+
+    try {
+      setIsStopping(true);
+      const response = await makeRequest(
+        `/api/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/stop`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Clear cached execution processes since they should be stopped
+        setExecutionProcesses({});
+        // Refresh activities to show updated status
+        await fetchAttemptActivities(selectedAttempt.id);
+        // Wait a bit for the backend to finish updating
+        setTimeout(() => {
+          fetchAttemptActivities(selectedAttempt.id);
+        }, 1000);
+      }
+    } catch (err) {
+      console.error("Failed to stop executions:", err);
+    } finally {
+      setIsStopping(false);
     }
   };
 
@@ -524,6 +575,18 @@ export function TaskDetailsPanel({
 
                   {selectedAttempt && (
                     <div className="flex gap-1">
+                      {(isAttemptRunning || isStopping) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={stopAllExecutions}
+                          disabled={isStopping}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          <StopCircle className="h-4 w-4 mr-1" />
+                          {isStopping ? "Stopping..." : "Stop"}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"

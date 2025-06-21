@@ -40,6 +40,7 @@ impl Executor for AmpExecutor {
             .current_dir(worktree_path)
             .arg("@sourcegraph/amp")
             .arg("--format=jsonl")
+            .process_group(0) // Create new process group so we can kill entire tree
             .spawn()
             .map_err(ExecutorError::SpawnFailed)?;
 

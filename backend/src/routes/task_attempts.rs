@@ -472,6 +472,123 @@ pub async fn get_execution_process(
 }
 
 #[axum::debug_handler]
+pub async fn stop_all_execution_processes(
+    Path((project_id, task_id, attempt_id)): Path<(Uuid, Uuid, Uuid)>,
+    Extension(pool): Extension<SqlitePool>,
+    Extension(app_state): Extension<crate::app_state::AppState>,
+) -> Result<ResponseJson<ApiResponse<()>>, StatusCode> {
+    // Verify task attempt exists and belongs to the correct task
+    match TaskAttempt::exists_for_task(&pool, attempt_id, task_id, project_id).await {
+        Ok(false) => return Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            tracing::error!("Failed to check task attempt existence: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+        Ok(true) => {}
+    }
+
+    // Get all execution processes for the task attempt
+    let processes = match ExecutionProcess::find_by_task_attempt_id(&pool, attempt_id).await {
+        Ok(processes) => processes,
+        Err(e) => {
+            tracing::error!(
+                "Failed to fetch execution processes for attempt {}: {}",
+                attempt_id,
+                e
+            );
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let mut stopped_count = 0;
+    let mut errors = Vec::new();
+
+    // Stop all running processes
+    for process in processes {
+        match app_state.stop_running_execution_by_id(process.id).await {
+            Ok(true) => {
+                stopped_count += 1;
+
+                // Update the execution process status in the database
+                if let Err(e) = ExecutionProcess::update_completion(
+                    &pool,
+                    process.id,
+                    crate::models::execution_process::ExecutionProcessStatus::Killed,
+                    None,
+                )
+                .await
+                {
+                    tracing::error!("Failed to update execution process status: {}", e);
+                    errors.push(format!("Failed to update process {} status", process.id));
+                } else {
+                    // Create a new activity record to mark as stopped
+                    let activity_id = Uuid::new_v4();
+                    let create_activity = CreateTaskAttemptActivity {
+                        execution_process_id: process.id,
+                        status: Some(TaskAttemptStatus::ExecutorFailed),
+                        note: Some(format!(
+                            "Execution process {:?} ({}) stopped by user",
+                            process.process_type, process.id
+                        )),
+                    };
+
+                    if let Err(e) = TaskAttemptActivity::create(
+                        &pool,
+                        &create_activity,
+                        activity_id,
+                        TaskAttemptStatus::ExecutorFailed,
+                    )
+                    .await
+                    {
+                        tracing::error!("Failed to create stopped activity: {}", e);
+                        errors.push(format!(
+                            "Failed to create activity for process {}",
+                            process.id
+                        ));
+                    }
+                }
+            }
+            Ok(false) => {
+                // Process was not running, which is fine
+            }
+            Err(e) => {
+                tracing::error!("Failed to stop execution process {}: {}", process.id, e);
+                errors.push(format!("Failed to stop process {}: {}", process.id, e));
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        return Ok(ResponseJson(ApiResponse {
+            success: false,
+            data: None,
+            message: Some(format!(
+                "Stopped {} processes, but encountered errors: {}",
+                stopped_count,
+                errors.join(", ")
+            )),
+        }));
+    }
+
+    if stopped_count == 0 {
+        return Ok(ResponseJson(ApiResponse {
+            success: true,
+            data: None,
+            message: Some("No running processes found to stop".to_string()),
+        }));
+    }
+
+    Ok(ResponseJson(ApiResponse {
+        success: true,
+        data: None,
+        message: Some(format!(
+            "Successfully stopped {} execution processes",
+            stopped_count
+        )),
+    }))
+}
+
+#[axum::debug_handler]
 pub async fn stop_execution_process(
     Path((project_id, task_id, attempt_id, process_id)): Path<(Uuid, Uuid, Uuid, Uuid)>,
     Extension(pool): Extension<SqlitePool>,
@@ -644,6 +761,10 @@ pub fn task_attempts_router() -> Router {
         .route(
             "/projects/:project_id/tasks/:task_id/attempts/:attempt_id/execution-processes",
             get(get_task_attempt_execution_processes),
+        )
+        .route(
+            "/projects/:project_id/tasks/:task_id/attempts/:attempt_id/stop",
+            post(stop_all_execution_processes),
         )
         .route(
             "/projects/:project_id/tasks/:task_id/attempts/:attempt_id/execution-processes/:process_id/stop",
