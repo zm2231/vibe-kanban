@@ -6,29 +6,39 @@ import {
   Clock,
   FileText,
   Code,
+  ChevronDown,
+  ChevronUp,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { makeRequest } from "@/lib/api";
-import { getTaskPanelClasses, getBackdropClasses } from "@/lib/responsive-config";
+import {
+  getTaskPanelClasses,
+  getBackdropClasses,
+} from "@/lib/responsive-config";
 import type {
   TaskStatus,
   TaskAttempt,
   TaskAttemptActivity,
   TaskAttemptStatus,
-  ExecutionProcess,
-  ExecutionProcessStatus,
-  ExecutionProcessType,
   ApiResponse,
   TaskWithAttemptStatus,
 } from "shared/types";
@@ -100,51 +110,6 @@ const getAttemptStatusDisplay = (
   }
 };
 
-const getProcessStatusDisplay = (
-  status: ExecutionProcessStatus
-): { label: string; className: string } => {
-  switch (status) {
-    case "running":
-      return {
-        label: "Running",
-        className: "bg-status-running text-status-running-foreground",
-      };
-    case "completed":
-      return {
-        label: "Completed",
-        className: "bg-status-complete text-status-complete-foreground",
-      };
-    case "failed":
-      return {
-        label: "Failed",
-        className: "bg-status-failed text-status-failed-foreground",
-      };
-    case "killed":
-      return {
-        label: "Killed",
-        className: "bg-status-failed text-status-failed-foreground",
-      };
-    default:
-      return {
-        label: "Unknown",
-        className: "bg-status-init text-status-init-foreground",
-      };
-  }
-};
-
-const getProcessTypeDisplay = (type: ExecutionProcessType): string => {
-  switch (type) {
-    case "setupscript":
-      return "Setup Script";
-    case "codingagent":
-      return "Coding Agent";
-    case "devserver":
-      return "Dev Server";
-    default:
-      return "Unknown";
-  }
-};
-
 export function TaskDetailsPanel({
   task,
   projectId,
@@ -158,12 +123,9 @@ export function TaskDetailsPanel({
   const [attemptActivities, setAttemptActivities] = useState<
     TaskAttemptActivity[]
   >([]);
-  const [executionProcesses, setExecutionProcesses] = useState<
-    ExecutionProcess[]
-  >([]);
   const [loading, setLoading] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
-  const [showAttemptHistory, setShowAttemptHistory] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   // Check if the selected attempt is active (not in a final state)
   const isAttemptRunning =
@@ -181,7 +143,6 @@ export function TaskDetailsPanel({
     const interval = setInterval(() => {
       if (selectedAttempt) {
         fetchAttemptActivities(selectedAttempt.id, true);
-        fetchExecutionProcesses(selectedAttempt.id, true);
       }
     }, 2000);
 
@@ -217,7 +178,6 @@ export function TaskDetailsPanel({
             );
             setSelectedAttempt(latestAttempt);
             fetchAttemptActivities(latestAttempt.id);
-            fetchExecutionProcesses(latestAttempt.id);
           }
         }
       }
@@ -251,35 +211,11 @@ export function TaskDetailsPanel({
     }
   };
 
-  const fetchExecutionProcesses = async (
-    attemptId: string,
-    _isBackgroundUpdate = false
-  ) => {
-    if (!task) return;
-
-    try {
-      const response = await makeRequest(
-        `/api/projects/${projectId}/tasks/${task.id}/attempts/${attemptId}/execution-processes`
-      );
-
-      if (response.ok) {
-        const result: ApiResponse<ExecutionProcess[]> = await response.json();
-        if (result.success && result.data) {
-          setExecutionProcesses(result.data);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch execution processes:", err);
-    }
-  };
-
   const handleAttemptChange = (attemptId: string) => {
     const attempt = taskAttempts.find((a) => a.id === attemptId);
     if (attempt) {
       setSelectedAttempt(attempt);
       fetchAttemptActivities(attempt.id);
-      fetchExecutionProcesses(attempt.id);
-      setShowAttemptHistory(false);
     }
   };
 
@@ -287,30 +223,6 @@ export function TaskDetailsPanel({
     // TODO: Implement follow-up message API
     console.log("Follow-up message:", followUpMessage);
     setFollowUpMessage("");
-  };
-
-  const stopExecutionProcess = async (processId: string) => {
-    if (!task || !selectedAttempt) return;
-
-    try {
-      const response = await makeRequest(
-        `/api/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/execution-processes/${processId}/stop`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        // Refresh the execution processes
-        fetchExecutionProcesses(selectedAttempt.id);
-        fetchAttemptActivities(selectedAttempt.id);
-      }
-    } catch (err) {
-      console.error("Failed to stop execution process:", err);
-    }
   };
 
   const openInEditor = async () => {
@@ -331,6 +243,29 @@ export function TaskDetailsPanel({
     }
   };
 
+  const createNewAttempt = async () => {
+    if (!task) return;
+
+    try {
+      const response = await makeRequest(
+        `/api/projects/${projectId}/tasks/${task.id}/attempts`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Refresh the attempts list
+        fetchTaskAttempts();
+      }
+    } catch (err) {
+      console.error("Failed to create new attempt:", err);
+    }
+  };
+
   if (!task) return null;
 
   return (
@@ -338,15 +273,10 @@ export function TaskDetailsPanel({
       {isOpen && (
         <>
           {/* Backdrop - only on smaller screens (overlay mode) */}
-          <div
-            className={getBackdropClasses()}
-            onClick={onClose}
-          />
+          <div className={getBackdropClasses()} onClick={onClose} />
 
           {/* Panel */}
-          <div
-            className={getTaskPanelClasses()}
-          >
+          <div className={getTaskPanelClasses()}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="p-6 border-b space-y-4">
@@ -380,13 +310,59 @@ export function TaskDetailsPanel({
                   </div>
                 </div>
 
+                {/* Description */}
+                <div>
+                  <div className="p-3 bg-muted rounded-md">
+                    {task.description ? (
+                      <div>
+                        <p
+                          className={`text-sm whitespace-pre-wrap ${
+                            !isDescriptionExpanded &&
+                            task.description.length > 200
+                              ? "line-clamp-3"
+                              : ""
+                          }`}
+                        >
+                          {task.description}
+                        </p>
+                        {task.description.length > 200 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setIsDescriptionExpanded(!isDescriptionExpanded)
+                            }
+                            className="mt-2 p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            {isDescriptionExpanded ? (
+                              <>
+                                <ChevronUp className="h-3 w-3 mr-1" />
+                                Show less
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-3 w-3 mr-1" />
+                                Show more
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        No description provided
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Attempt Selection */}
-                <div className="flex items-center gap-2">
-                  {selectedAttempt && !showAttemptHistory ? (
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="text-sm text-muted-foreground">
-                        Current attempt:
-                      </span>
+                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-md">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-sm text-muted-foreground">
+                      Current attempt:
+                    </span>
+                    {selectedAttempt && (
                       <span className="text-sm font-medium">
                         {new Date(
                           selectedAttempt.created_at
@@ -395,55 +371,64 @@ export function TaskDetailsPanel({
                           selectedAttempt.created_at
                         ).toLocaleTimeString()}
                       </span>
+                    )}
+                    <div className="flex gap-1">
                       {taskAttempts.length > 1 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAttemptHistory(true)}
-                        >
-                          <History className="h-4 w-4 mr-1" />
-                          History
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <History className="h-4 w-4 mr-1" />
+                              History
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-64">
+                            {taskAttempts.map((attempt) => (
+                              <DropdownMenuItem
+                                key={attempt.id}
+                                onClick={() => handleAttemptChange(attempt.id)}
+                                className={
+                                  selectedAttempt?.id === attempt.id
+                                    ? "bg-accent"
+                                    : ""
+                                }
+                              >
+                                <div className="flex flex-col w-full">
+                                  <span className="font-medium text-sm">
+                                    {new Date(
+                                      attempt.created_at
+                                    ).toLocaleDateString()}{" "}
+                                    {new Date(
+                                      attempt.created_at
+                                    ).toLocaleTimeString()}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {attempt.executor || "executor"}
+                                  </span>
+                                </div>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="default"
+                              onClick={createNewAttempt}
+                              className="h-9 w-9 p-0"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Create new attempt</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2 flex-1">
-                      <Select
-                        value={selectedAttempt?.id || ""}
-                        onValueChange={handleAttemptChange}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select an attempt..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {taskAttempts.map((attempt) => (
-                            <SelectItem key={attempt.id} value={attempt.id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {new Date(
-                                    attempt.created_at
-                                  ).toLocaleDateString()}{" "}
-                                  {new Date(
-                                    attempt.created_at
-                                  ).toLocaleTimeString()}
-                                </span>
-                                <span className="text-xs text-muted-foreground text-left">
-                                  {attempt.executor || "executor"}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowAttemptHistory(false)}
-                      >
-                        Close
-                      </Button>
-                    </div>
-                  )}
+                  </div>
 
                   {selectedAttempt && (
                     <div className="flex gap-1">
@@ -482,116 +467,6 @@ export function TaskDetailsPanel({
                   </div>
                 ) : (
                   <>
-                    {/* Description */}
-                    <div>
-                      <Label className="text-sm font-medium mb-2 block">
-                        Description
-                      </Label>
-                      <div className="p-3 bg-muted rounded-md min-h-[60px]">
-                        {task.description ? (
-                          <p className="text-sm whitespace-pre-wrap">
-                            {task.description}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground italic">
-                            No description provided
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Execution Processes */}
-                    {selectedAttempt && executionProcesses.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-medium mb-3 block">
-                          Execution Processes
-                        </Label>
-                        <div className="space-y-3">
-                          {executionProcesses.map((process) => (
-                            <Card key={process.id} className="border">
-                              <CardContent className="p-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        getProcessStatusDisplay(process.status)
-                                          .className
-                                      }`}
-                                    >
-                                      {
-                                        getProcessStatusDisplay(process.status)
-                                          .label
-                                      }
-                                    </span>
-                                    <span className="font-medium text-sm">
-                                      {getProcessTypeDisplay(
-                                        process.process_type
-                                      )}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">
-                                      {new Date(
-                                        process.started_at
-                                      ).toLocaleTimeString()}
-                                    </span>
-                                    {process.status === "running" && (
-                                      <Button
-                                        onClick={() =>
-                                          stopExecutionProcess(process.id)
-                                        }
-                                        size="sm"
-                                        variant="destructive"
-                                      >
-                                        Stop
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {(process.stdout || process.stderr) && (
-                                  <div className="space-y-2">
-                                    {process.stdout && (
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground mb-1 block">
-                                          STDOUT
-                                        </Label>
-                                        <div
-                                          className="bg-black text-green-400 border border-green-400 rounded-md p-2 font-mono text-xs max-h-32 overflow-y-auto whitespace-pre-wrap"
-                                          style={{
-                                            fontFamily:
-                                              'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                                          }}
-                                        >
-                                          {process.stdout}
-                                        </div>
-                                      </div>
-                                    )}
-                                    {process.stderr && (
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground mb-1 block">
-                                          STDERR
-                                        </Label>
-                                        <div
-                                          className="bg-black text-red-400 border border-red-400 rounded-md p-2 font-mono text-xs max-h-32 overflow-y-auto whitespace-pre-wrap"
-                                          style={{
-                                            fontFamily:
-                                              'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                                          }}
-                                        >
-                                          {process.stderr}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     {/* Activity History */}
                     {selectedAttempt && (
                       <div>
@@ -604,7 +479,7 @@ export function TaskDetailsPanel({
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {attemptActivities.map((activity) => (
+                            {attemptActivities.slice().reverse().map((activity) => (
                               <Card key={activity.id} className="border">
                                 <CardContent className="p-4">
                                   <div className="flex items-center justify-between mb-2">
