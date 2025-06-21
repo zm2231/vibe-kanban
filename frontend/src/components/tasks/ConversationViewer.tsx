@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import {
-  PersonStanding,
   Brain,
   Wrench as Tool,
   ChevronDown,
@@ -408,11 +407,11 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
             return (
               <Card
                 key={`error-${index}`}
-                className="bg-yellow-50 border-yellow-200"
+                className="bg-yellow-100/50 dark:bg-yellow-900/20 border"
               >
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                     <Badge variant="secondary" className="text-xs">
                       Parse Error
                     </Badge>
@@ -421,7 +420,7 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
                     <p className="text-xs text-muted-foreground mb-1">
                       Raw JSONL:
                     </p>
-                    <pre className="text-xs bg-white p-2 rounded border overflow-x-auto whitespace-pre-wrap">
+                    <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap">
                       {safeRenderString(item.rawLine)}
                     </pre>
                   </div>
@@ -443,20 +442,17 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
             }
 
             return (
-              <Card
-                key={`unknown-${index}`}
-                className="bg-gray-50 border-gray-200"
-              >
+              <Card key={`unknown-${index}`} className="bg-muted/30 border">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <FileText className="h-4 w-4 text-gray-600" />
+                    <FileText className="h-4 w-4 text-muted-foreground" />
                     <Badge variant="secondary" className="text-xs">
                       Unknown
                     </Badge>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">JSONL:</p>
-                    <pre className="text-xs bg-white p-2 rounded border overflow-x-auto whitespace-pre-wrap">
+                    <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap">
                       {safeRenderString(prettyJson)}
                     </pre>
                   </div>
@@ -469,11 +465,11 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
             return (
               <Card
                 key={`rejection-${index}`}
-                className="bg-red-50 border-red-200"
+                className="bg-red-100/50 dark:bg-red-900/20 border"
               >
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
                     <Badge variant="secondary" className="text-xs">
                       Tool Rejected
                     </Badge>
@@ -486,7 +482,7 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
                       <p className="text-xs text-muted-foreground mb-1">
                         Command:
                       </p>
-                      <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">
+                      <pre className="text-xs bg-background p-2 rounded border overflow-x-auto">
                         {safeRenderString(item.command)}
                       </pre>
                     </div>
@@ -494,7 +490,7 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
                       <p className="text-xs text-muted-foreground mb-1">
                         Message:
                       </p>
-                      <p className="text-xs bg-white p-2 rounded border">
+                      <p className="text-xs bg-background p-2 rounded border">
                         {safeRenderString(item.message)}
                       </p>
                     </div>
@@ -516,8 +512,8 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
                 key={messageId}
                 className={`${
                   item.role === "user"
-                    ? "bg-blue-50 border-blue-200 ml-12"
-                    : "bg-gray-50 border-gray-200 mr-12"
+                    ? "bg-blue-100/50 dark:bg-blue-900/20 border ml-12"
+                    : "bg-muted/50 border mr-12"
                 }`}
               >
                 <CardContent className="p-4">
@@ -587,7 +583,7 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
                         return (
                           <div key={contentIndex} className="mt-3">
                             <div className="flex items-center gap-2 mb-2">
-                              <Tool className="h-4 w-4 text-green-600" />
+                              <Tool className="h-4 w-4 text-green-600 dark:text-green-400" />
                               <span className="text-sm font-medium">
                                 {safeRenderString(content.name)}
                               </span>

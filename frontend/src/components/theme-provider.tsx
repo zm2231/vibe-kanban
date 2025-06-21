@@ -1,45 +1,30 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import type { Config, ThemeMode, ApiResponse } from "shared/types";
+import type { ThemeMode } from "shared/types";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
+  initialTheme?: ThemeMode;
 };
 
 type ThemeProviderState = {
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
-  loadThemeFromConfig: () => Promise<void>;
 };
 
 const initialState: ThemeProviderState = {
   theme: "system",
   setTheme: () => null,
-  loadThemeFromConfig: async () => {},
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemeMode>("system");
+export function ThemeProvider({ children, initialTheme = "system", ...props }: ThemeProviderProps) {
+  const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
 
-  // Load theme from backend config
-  const loadThemeFromConfig = async () => {
-    try {
-      const response = await fetch("/api/config");
-      const data: ApiResponse<Config> = await response.json();
-      
-      if (data.success && data.data) {
-        setThemeState(data.data.theme);
-      }
-    } catch (err) {
-      console.error("Error loading theme from config:", err);
-    }
-  };
-
-  // Load theme on mount
+  // Update theme when initialTheme changes
   useEffect(() => {
-    loadThemeFromConfig();
-  }, []);
+    setThemeState(initialTheme);
+  }, [initialTheme]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -66,7 +51,6 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const value = {
     theme,
     setTheme,
-    loadThemeFromConfig,
   };
 
   return (

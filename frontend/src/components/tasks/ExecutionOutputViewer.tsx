@@ -62,7 +62,7 @@ export function ExecutionOutputViewer({
   }
 
   return (
-    <Card className="bg-muted border-none">
+    <Card className="">
       <CardContent className="p-3">
         <div className="space-y-3">
           {/* View mode toggle for Amp executor with valid JSONL */}

@@ -8,6 +8,7 @@ import { TaskAttemptComparePage } from "@/pages/task-attempt-compare";
 import { Settings } from "@/pages/Settings";
 import { DisclaimerDialog } from "@/components/DisclaimerDialog";
 import { ConfigProvider, useConfig } from "@/components/config-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import type { Config, ApiResponse } from "shared/types";
 
 function AppContent() {
@@ -57,30 +58,32 @@ function AppContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <DisclaimerDialog
-        open={showDisclaimer}
-        onAccept={handleDisclaimerAccept}
-      />
-      {showNavbar && <Navbar />}
-      <div className="flex-1 overflow-y-scroll">
-        <Routes>
-          <Route path="/" element={<Projects />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:projectId" element={<Projects />} />
-          <Route path="/projects/:projectId/tasks" element={<ProjectTasks />} />
-          <Route
-            path="/projects/:projectId/tasks/:taskId"
-            element={<TaskDetailsPage />}
-          />
-          <Route
-            path="/projects/:projectId/tasks/:taskId/attempts/:attemptId/compare"
-            element={<TaskAttemptComparePage />}
-          />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
+    <ThemeProvider initialTheme={config?.theme || "system"}>
+      <div className="h-screen flex flex-col bg-background">
+        <DisclaimerDialog
+          open={showDisclaimer}
+          onAccept={handleDisclaimerAccept}
+        />
+        {showNavbar && <Navbar />}
+        <div className="flex-1 overflow-y-scroll">
+          <Routes>
+            <Route path="/" element={<Projects />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:projectId" element={<Projects />} />
+            <Route path="/projects/:projectId/tasks" element={<ProjectTasks />} />
+            <Route
+              path="/projects/:projectId/tasks/:taskId"
+              element={<TaskDetailsPage />}
+            />
+            <Route
+              path="/projects/:projectId/tasks/:taskId/attempts/:attemptId/compare"
+              element={<TaskAttemptComparePage />}
+            />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </div>
       </div>
-    </div>
+    </ThemeProvider>
   );
 }
 

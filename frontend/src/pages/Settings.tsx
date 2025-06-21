@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,39 +7,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import type { Config, ThemeMode, EditorType, ApiResponse } from "shared/types";
+import type { ThemeMode, EditorType } from "shared/types";
 import { useTheme } from "@/components/theme-provider";
+import { useConfig } from "@/components/config-provider";
 
 export function Settings() {
-  const [config, setConfig] = useState<Config | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { config, updateConfig, saveConfig, loading } = useConfig();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const { setTheme } = useTheme();
-
-  // Load initial config
-  useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const response = await fetch("/api/config");
-        const data: ApiResponse<Config> = await response.json();
-        
-        if (data.success && data.data) {
-          setConfig(data.data);
-        } else {
-          setError(data.message || "Failed to load configuration");
-        }
-      } catch (err) {
-        setError("Failed to load configuration");
-        console.error("Error loading config:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadConfig();
-  }, []);
 
   const handleSave = async () => {
     if (!config) return;
@@ -49,24 +26,16 @@ export function Settings() {
     setSuccess(false);
     
     try {
-      const response = await fetch("/api/config", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(config),
-      });
+      const success = await saveConfig();
       
-      const data: ApiResponse<Config> = await response.json();
-      
-      if (data.success) {
+      if (success) {
         setSuccess(true);
         // Update theme provider to reflect the saved theme
         setTheme(config.theme);
         
         setTimeout(() => setSuccess(false), 3000);
       } else {
-        setError(data.message || "Failed to save configuration");
+        setError("Failed to save configuration");
       }
     } catch (err) {
       setError("Failed to save configuration");
@@ -74,10 +43,6 @@ export function Settings() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const updateConfig = (updates: Partial<Config>) => {
-    setConfig((prev: Config | null) => prev ? { ...prev, ...updates } : null);
   };
 
   const resetDisclaimer = async () => {

@@ -15,6 +15,7 @@ import { ArrowLeft, FileText, Code /* , Monitor, Braces */ } from "lucide-react"
 import { makeRequest } from "@/lib/api";
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
 import { useKeyboardShortcuts } from "@/lib/keyboard-shortcuts";
+import { useConfig } from "@/components/config-provider";
 import type {
   TaskStatus,
   TaskAttempt,
@@ -23,7 +24,6 @@ import type {
   ExecutionProcess,
   ExecutionProcessStatus,
   ExecutionProcessType,
-  Config,
   ApiResponse,
 } from "shared/types";
 
@@ -118,6 +118,7 @@ export function TaskDetailsPage() {
   >([]);
   const [executionProcessesLoading, setExecutionProcessesLoading] = useState(false);
   const [selectedExecutor, setSelectedExecutor] = useState<string>("claude");
+  const { config } = useConfig();
   const [creatingAttempt, setCreatingAttempt] = useState(false);
   const [stoppingProcess, setStoppingProcess] = useState<string | null>(null);
   const [openingEditor, setOpeningEditor] = useState(false);
@@ -164,23 +165,12 @@ export function TaskDetailsPage() {
     }
   }, [projectId, taskId]);
 
-  // Load config to get default executor
+  // Set default executor from config
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const response = await makeRequest("/api/config");
-        if (response.ok) {
-          const result: ApiResponse<Config> = await response.json();
-          if (result.success && result.data) {
-            setSelectedExecutor(result.data.executor.type);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load config:", err);
-      }
-    };
-    loadConfig();
-  }, []);
+    if (config) {
+      setSelectedExecutor(config.executor.type);
+    }
+  }, [config]);
 
   useEffect(() => {
     if (task) {
