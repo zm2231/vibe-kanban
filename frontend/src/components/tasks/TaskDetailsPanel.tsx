@@ -660,10 +660,10 @@ export function TaskDetailsPanel({
                               <div key="worktree-created">
                                 <div className="flex items-center gap-3 my-4 rounded-md">
                                   <Chip dotColor="bg-green-500">
-                                    Worktree Created At
+                                    New Worktree
                                   </Chip>
                                   <span className="text-sm text-muted-foreground flex-1">
-                                    Git worktree created at {selectedAttempt.worktree_path}
+                                    {selectedAttempt.worktree_path}
                                   </span>
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <Clock className="h-3 w-3" />
