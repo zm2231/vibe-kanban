@@ -579,79 +579,168 @@ impl TaskAttempt {
         .await?
         .ok_or(TaskAttemptError::TaskNotFound)?;
 
-        // Open the worktree repository
-        let worktree_repo = Repository::open(&attempt.worktree_path)?;
-
-        // Get the project to access the main repository for base commit
+        // Get the project to access the main repository
         let project = Project::find_by_id(pool, project_id)
             .await?
             .ok_or(TaskAttemptError::ProjectNotFound)?;
 
-        // Get the base commit from the main repository (live data)
-        let main_repo = Repository::open(&project.git_repo_path)?;
-        let base_oid = main_repo.head()?.peel_to_commit()?.id();
-        let base_commit = worktree_repo.find_commit(base_oid)?;
-        let base_tree = base_commit.tree()?;
-
-        // Get the current HEAD commit in the worktree
-        let head = worktree_repo.head()?;
-        let current_commit = head.peel_to_commit()?;
-        let current_tree = current_commit.tree()?;
-
-        // Create a diff between the base tree and current tree
-        let diff = worktree_repo.diff_tree_to_tree(Some(&base_tree), Some(&current_tree), None)?;
-
         let mut files = Vec::new();
 
-        // Process each diff delta (file change)
-        diff.foreach(
-            &mut |delta, _progress| {
-                if let Some(path_str) = delta.new_file().path().and_then(|p| p.to_str()) {
-                    let old_file = delta.old_file();
-                    let new_file = delta.new_file();
+        if let Some(merge_commit_id) = &attempt.merge_commit {
+            // Task attempt has been merged - show the diff from the merge commit
+            let main_repo = Repository::open(&project.git_repo_path)?;
+            let merge_commit = main_repo.find_commit(git2::Oid::from_str(merge_commit_id)?)?;
 
-                    // Get old content
-                    let old_content = if !old_file.id().is_zero() {
-                        match worktree_repo.find_blob(old_file.id()) {
-                            Ok(blob) => String::from_utf8_lossy(blob.content()).to_string(),
-                            Err(_) => String::new(),
-                        }
-                    } else {
-                        String::new() // File didn't exist in base commit
-                    };
+            // A merge commit has multiple parents - first parent is the main branch before merge,
+            // second parent is the branch that was merged
+            let parents: Vec<_> = merge_commit.parents().collect();
 
-                    // Get new content
-                    let new_content = if !new_file.id().is_zero() {
-                        match worktree_repo.find_blob(new_file.id()) {
-                            Ok(blob) => String::from_utf8_lossy(blob.content()).to_string(),
-                            Err(_) => String::new(),
-                        }
-                    } else {
-                        String::new() // File was deleted
-                    };
+            let diff = if parents.len() >= 2 {
+                let base_tree = parents[0].tree()?; // Main branch before merge
+                let merged_tree = parents[1].tree()?; // The branch that was merged
+                main_repo.diff_tree_to_tree(Some(&base_tree), Some(&merged_tree), None)?
+            } else {
+                // Fast-forward merge or single parent - compare merge commit with its parent
+                let base_tree = if !parents.is_empty() {
+                    parents[0].tree()?
+                } else {
+                    // No parents (shouldn't happen), use empty tree
+                    main_repo.find_tree(git2::Oid::zero())?
+                };
+                let merged_tree = merge_commit.tree()?;
+                main_repo.diff_tree_to_tree(Some(&base_tree), Some(&merged_tree), None)?
+            };
 
-                    // Generate Git-native diff chunks
-                    if old_content != new_content {
-                        match Self::generate_git_diff_chunks(&worktree_repo, &old_file, &new_file, path_str) {
-                            Ok(diff_chunks) if !diff_chunks.is_empty() => {
-                                files.push(FileDiff {
-                                    path: path_str.to_string(),
-                                    chunks: diff_chunks,
-                                });
+            // Process each diff delta (file change)
+            diff.foreach(
+                &mut |delta, _progress| {
+                    if let Some(path_str) = delta.new_file().path().and_then(|p| p.to_str()) {
+                        let old_file = delta.old_file();
+                        let new_file = delta.new_file();
+
+                        // Get old content
+                        let old_content = if !old_file.id().is_zero() {
+                            match main_repo.find_blob(old_file.id()) {
+                                Ok(blob) => String::from_utf8_lossy(blob.content()).to_string(),
+                                Err(_) => String::new(),
                             }
-                            Err(e) => {
-                                eprintln!("Error generating diff for {}: {:?}", path_str, e);
+                        } else {
+                            String::new() // File didn't exist in base commit
+                        };
+
+                        // Get new content
+                        let new_content = if !new_file.id().is_zero() {
+                            match main_repo.find_blob(new_file.id()) {
+                                Ok(blob) => String::from_utf8_lossy(blob.content()).to_string(),
+                                Err(_) => String::new(),
                             }
-                            _ => {}
+                        } else {
+                            String::new() // File was deleted
+                        };
+
+                        // Generate Git-native diff chunks
+                        if old_content != new_content {
+                            match Self::generate_git_diff_chunks(
+                                &main_repo, &old_file, &new_file, path_str,
+                            ) {
+                                Ok(diff_chunks) if !diff_chunks.is_empty() => {
+                                    files.push(FileDiff {
+                                        path: path_str.to_string(),
+                                        chunks: diff_chunks,
+                                    });
+                                }
+                                Err(e) => {
+                                    eprintln!("Error generating diff for {}: {:?}", path_str, e);
+                                }
+                                _ => {}
+                            }
                         }
                     }
-                }
-                true // Continue processing
-            },
-            None,
-            None,
-            None,
-        )?;
+                    true // Continue processing
+                },
+                None,
+                None,
+                None,
+            )?;
+        } else {
+            // Task attempt not yet merged - use the original logic with fork point
+            let worktree_repo = Repository::open(&attempt.worktree_path)?;
+            let main_repo = Repository::open(&project.git_repo_path)?;
+            let main_head_oid = main_repo.head()?.peel_to_commit()?.id();
+
+            // Get the current worktree HEAD commit
+            let worktree_head = worktree_repo.head()?;
+            let worktree_head_oid = worktree_head.peel_to_commit()?.id();
+
+            // Find the merge base (common ancestor) between main and the worktree branch
+            // This represents the point where the worktree branch forked off from main
+            let base_oid = worktree_repo.merge_base(main_head_oid, worktree_head_oid)?;
+            let base_commit = worktree_repo.find_commit(base_oid)?;
+            let base_tree = base_commit.tree()?;
+
+            // Get the current tree from the worktree HEAD commit we already retrieved
+            let current_commit = worktree_repo.find_commit(worktree_head_oid)?;
+            let current_tree = current_commit.tree()?;
+
+            // Create a diff between the base tree and current tree
+            let diff =
+                worktree_repo.diff_tree_to_tree(Some(&base_tree), Some(&current_tree), None)?;
+
+            // Process each diff delta (file change)
+            diff.foreach(
+                &mut |delta, _progress| {
+                    if let Some(path_str) = delta.new_file().path().and_then(|p| p.to_str()) {
+                        let old_file = delta.old_file();
+                        let new_file = delta.new_file();
+
+                        // Get old content
+                        let old_content = if !old_file.id().is_zero() {
+                            match worktree_repo.find_blob(old_file.id()) {
+                                Ok(blob) => String::from_utf8_lossy(blob.content()).to_string(),
+                                Err(_) => String::new(),
+                            }
+                        } else {
+                            String::new() // File didn't exist in base commit
+                        };
+
+                        // Get new content
+                        let new_content = if !new_file.id().is_zero() {
+                            match worktree_repo.find_blob(new_file.id()) {
+                                Ok(blob) => String::from_utf8_lossy(blob.content()).to_string(),
+                                Err(_) => String::new(),
+                            }
+                        } else {
+                            String::new() // File was deleted
+                        };
+
+                        // Generate Git-native diff chunks
+                        if old_content != new_content {
+                            match Self::generate_git_diff_chunks(
+                                &worktree_repo,
+                                &old_file,
+                                &new_file,
+                                path_str,
+                            ) {
+                                Ok(diff_chunks) if !diff_chunks.is_empty() => {
+                                    files.push(FileDiff {
+                                        path: path_str.to_string(),
+                                        chunks: diff_chunks,
+                                    });
+                                }
+                                Err(e) => {
+                                    eprintln!("Error generating diff for {}: {:?}", path_str, e);
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    true // Continue processing
+                },
+                None,
+                None,
+                None,
+            )?;
+        }
 
         Ok(WorktreeDiff { files })
     }
@@ -681,15 +770,13 @@ impl TaskAttempt {
 
         // Generate patch using Git's diff algorithm
         let patch = match (old_blob.as_ref(), new_blob.as_ref()) {
-            (Some(old_b), Some(new_b)) => {
-                git2::Patch::from_blobs(
-                    old_b,
-                    Some(Path::new(file_path)),
-                    new_b,
-                    Some(Path::new(file_path)),
-                    None,
-                )?
-            }
+            (Some(old_b), Some(new_b)) => git2::Patch::from_blobs(
+                old_b,
+                Some(Path::new(file_path)),
+                new_b,
+                Some(Path::new(file_path)),
+                None,
+            )?,
             (None, Some(new_b)) => {
                 // File was added
                 git2::Patch::from_blob_and_buffer(
@@ -719,12 +806,12 @@ impl TaskAttempt {
         // Process the patch hunks
         for hunk_idx in 0..patch.num_hunks() {
             let (_hunk, hunk_lines) = patch.hunk(hunk_idx)?;
-            
+
             // Process each line in the hunk
             for line_idx in 0..hunk_lines {
                 let line = patch.line_in_hunk(hunk_idx, line_idx)?;
                 let content = String::from_utf8_lossy(line.content()).to_string();
-                
+
                 let chunk_type = match line.origin() {
                     ' ' => DiffChunkType::Equal,
                     '+' => DiffChunkType::Insert,
