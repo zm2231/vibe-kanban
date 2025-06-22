@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   X,
   History,
@@ -608,18 +609,15 @@ export function TaskDetailsPanel({
                         <Code className="h-4 w-4 mr-1" />
                         Editor
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          window.open(
-                            `/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/compare`,
-                            "_blank"
-                          )
-                        }
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        Changes
+                      <Button variant="outline" size="sm" asChild>
+                        <Link
+                          to={`/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/compare`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          Changes
+                        </Link>
                       </Button>
                     </div>
                   )}
