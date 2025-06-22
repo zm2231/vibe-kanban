@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Define available keyboard shortcuts
 export interface KeyboardShortcut {
@@ -16,6 +16,7 @@ export interface KeyboardShortcutContext {
   openCreateTask?: () => void;
   currentPath?: string;
   hasOpenDialog?: boolean;
+  location?: ReturnType<typeof useLocation>;
 }
 
 // Centralized shortcut definitions
@@ -32,7 +33,7 @@ export const createKeyboardShortcuts = (context: KeyboardShortcutContext): Recor
       
       // Otherwise, navigate back
       if (context.navigate) {
-        const currentPath = context.currentPath || window.location.pathname;
+        const currentPath = context.currentPath || context.location?.pathname || '/';
         
         // Navigate back based on current path
         if (currentPath.includes('/attempts/') && currentPath.includes('/compare')) {
