@@ -62,7 +62,7 @@ impl TaskAttemptActivity {
         .await
     }
 
-    pub async fn find_processes_with_latest_executor_running_status(
+    pub async fn find_processes_with_latest_running_status(
         pool: &SqlitePool,
     ) -> Result<Vec<uuid::Uuid>, sqlx::Error> {
         let records = sqlx::query!(
@@ -75,8 +75,9 @@ impl TaskAttemptActivity {
                ) latest_activity ON ep.id = latest_activity.execution_process_id
                INNER JOIN task_attempt_activities taa ON ep.id = taa.execution_process_id 
                    AND taa.created_at = latest_activity.latest_created_at
-               WHERE taa.status = $1"#,
-            TaskAttemptStatus::ExecutorRunning as TaskAttemptStatus
+               WHERE taa.status IN ($1, $2)"#,
+            TaskAttemptStatus::ExecutorRunning as TaskAttemptStatus,
+            TaskAttemptStatus::SetupRunning as TaskAttemptStatus
         )
         .fetch_all(pool)
         .await?;

@@ -110,7 +110,7 @@ async fn send_push_notification(title: &str, message: &str) {
             message = message.replace('"', r#"\""#),
             title = title.replace('"', r#"\""#)
         );
-        
+
         let _ = tokio::process::Command::new("osascript")
             .arg("-e")
             .arg(script)
@@ -220,20 +220,18 @@ pub async fn execution_monitor(app_state: AppState) {
         // Add a small delay to ensure completed processes are properly handled first
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        let executor_running_process_ids =
-            match TaskAttemptActivity::find_processes_with_latest_executor_running_status(
-                &app_state.db_pool,
-            )
-            .await
+        let running_process_ids =
+            match TaskAttemptActivity::find_processes_with_latest_running_status(&app_state.db_pool)
+                .await
             {
                 Ok(processes) => processes,
                 Err(e) => {
-                    tracing::error!("Failed to query executor running attempts: {}", e);
+                    tracing::error!("Failed to query running attempts: {}", e);
                     continue;
                 }
             };
 
-        for process_id in executor_running_process_ids {
+        for process_id in running_process_ids {
             // Get the execution process to find the task attempt ID
             let task_attempt_id =
                 match ExecutionProcess::find_by_id(&app_state.db_pool, process_id).await {
