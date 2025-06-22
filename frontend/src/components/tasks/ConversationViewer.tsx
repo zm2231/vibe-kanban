@@ -17,6 +17,7 @@ import {
 interface JSONLLine {
   type: string;
   threadID?: string;
+  // Amp format
   messages?: [
     number,
     {
@@ -63,7 +64,31 @@ interface JSONLLine {
   state?: string;
   tool?: string;
   command?: string;
-  message?: string;
+  // Claude format
+  message?: {
+    role: "user" | "assistant" | "system";
+    content: Array<{
+      type: "text" | "tool_use" | "tool_result";
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: any;
+      tool_use_id?: string;
+      content?: any;
+      is_error?: boolean;
+    }> | string;
+  };
+  // Tool rejection message (string format)
+  rejectionMessage?: string;
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  result?: any;
+  duration_ms?: number;
+  total_cost_usd?: number;
   error?: string; // For parse errors
 }
 
@@ -89,6 +114,21 @@ const isValidMessage = (data: any): boolean => {
   );
 };
 
+const isValidClaudeMessage = (data: any): boolean => {
+  return (
+    typeof data.role === "string" &&
+    (typeof data.content === "string" || 
+     (Array.isArray(data.content) &&
+      data.content.every(
+        (item: any) =>
+          typeof item.type === "string" &&
+          (item.type !== "text" || typeof item.text === "string") &&
+          (item.type !== "tool_use" || typeof item.name === "string") &&
+          (item.type !== "tool_result" || typeof item.content !== "undefined")
+      )))
+  );
+};
+
 const isValidTokenUsage = (data: any): boolean => {
   return (
     data &&
@@ -97,11 +137,19 @@ const isValidTokenUsage = (data: any): boolean => {
   );
 };
 
+const isValidClaudeUsage = (data: any): boolean => {
+  return (
+    data &&
+    typeof data.input_tokens === "number" &&
+    typeof data.output_tokens === "number"
+  );
+};
+
 const isValidToolRejection = (data: any): boolean => {
   return (
     typeof data.tool === "string" &&
     typeof data.command === "string" &&
-    typeof data.message === "string"
+    (typeof data.message === "string" || typeof data.rejectionMessage === "string")
   );
 };
 
@@ -200,19 +248,50 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
           isValidMessagesLine(line) &&
           line.messages
         ) {
+          // Amp format
           for (const [messageIndex, message] of line.messages) {
             items.push({
               type: "message",
-              ...message,
+              role: message.role,
+              content: message.content,
+              timestamp: message.meta?.sentAt,
               messageIndex,
               lineIndex: line._lineIndex,
             });
           }
         } else if (
+          (line.type === "user" || line.type === "assistant" || line.type === "system") &&
+          line.message &&
+          isValidClaudeMessage(line.message)
+        ) {
+          // Claude format
+          const content = typeof line.message.content === "string" 
+            ? [{ type: "text", text: line.message.content }]
+            : line.message.content;
+          
+          items.push({
+            type: "message",
+            role: line.message.role === "system" ? "assistant" : line.message.role,
+            content: content,
+            lineIndex: line._lineIndex,
+          });
+        } else if (
+          line.type === "result" &&
+          line.usage &&
+          isValidClaudeUsage(line.usage)
+        ) {
+          // Claude usage info
+          tokenUsages.push({
+            used: line.usage.input_tokens + line.usage.output_tokens,
+            maxAvailable: line.usage.input_tokens + line.usage.output_tokens + 100000, // Approximate
+            lineIndex: line._lineIndex,
+          });
+        } else if (
           line.type === "token-usage" &&
           line.tokenUsage &&
           isValidTokenUsage(line.tokenUsage)
         ) {
+          // Amp format
           tokenUsages.push({
             used: line.tokenUsage.used,
             maxAvailable: line.tokenUsage.maxAvailable,
@@ -231,7 +310,7 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
             type: "tool-rejection",
             tool: line.tool,
             command: line.command,
-            message: line.message,
+            message: typeof line.message === "string" ? line.message : line.rejectionMessage || "Tool rejected",
             lineIndex: line._lineIndex,
           });
         } else {
@@ -602,12 +681,16 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
                           <div key={contentIndex} className="mt-3">
                             <div className="flex items-center gap-2 mb-2">
                               <div className="w-4 h-4 flex items-center justify-center">
-                                {content.run?.status && (
+                                {content.run?.status ? (
                                   <div
                                     className={`w-2 h-2 rounded-full ${getToolStatusColor(
                                       content.run.status
                                     )}`}
                                   />
+                                ) : content.is_error ? (
+                                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                                ) : (
+                                  <div className="w-2 h-2 rounded-full bg-green-500" />
                                 )}
                               </div>
                               <span className="text-sm text-muted-foreground">
@@ -618,10 +701,22 @@ export function ConversationViewer({ jsonlOutput }: ConversationViewerProps) {
                                   ({safeRenderString(content.run.status)})
                                 </span>
                               )}
+                              {content.is_error && (
+                                <span className="text-xs text-red-500">
+                                  (Error)
+                                </span>
+                              )}
                             </div>
+                            {/* Amp format result */}
                             {content.run?.result && (
                               <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto max-h-32">
                                 {safeRenderString(content.run.result)}
+                              </pre>
+                            )}
+                            {/* Claude format result */}
+                            {content.content && !content.run && (
+                              <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto max-h-32">
+                                {safeRenderString(content.content)}
                               </pre>
                             )}
                             {content.run?.toAllow && (

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,27 +15,28 @@ export function ExecutionOutputViewer({
   executionProcess,
   executor,
 }: ExecutionOutputViewerProps) {
-  const [viewMode, setViewMode] = useState<"conversation" | "raw">(
-    executor === "amp" ? "conversation" : "raw"
-  );
+  const [viewMode, setViewMode] = useState<"conversation" | "raw">("raw");
 
   const isAmpExecutor = executor === "amp";
+  const isClaudeExecutor = executor === "claude";
   const hasStdout = !!executionProcess.stdout;
   const hasStderr = !!executionProcess.stderr;
 
-  // Check if stdout looks like JSONL (for Amp executor)
-  const isValidJsonl = useMemo(() => {
-    if (!isAmpExecutor || !executionProcess.stdout) return false;
+  // Check if stdout looks like JSONL (for Amp or Claude executor)
+  const { isValidJsonl, jsonlFormat } = useMemo(() => {
+    if ((!isAmpExecutor && !isClaudeExecutor) || !executionProcess.stdout) {
+      return { isValidJsonl: false, jsonlFormat: null };
+    }
 
     try {
       const lines = executionProcess.stdout
         .split("\n")
         .filter((line) => line.trim());
-      if (lines.length === 0) return false;
+      if (lines.length === 0) return { isValidJsonl: false, jsonlFormat: null };
 
       // Try to parse at least the first few lines as JSON
       const testLines = lines.slice(0, Math.min(3, lines.length));
-      return testLines.every((line) => {
+      const allValid = testLines.every((line) => {
         try {
           JSON.parse(line);
           return true;
@@ -43,10 +44,42 @@ export function ExecutionOutputViewer({
           return false;
         }
       });
+
+      if (!allValid) return { isValidJsonl: false, jsonlFormat: null };
+
+      // Detect format by checking for Amp vs Claude structure
+      let hasAmpFormat = false;
+      let hasClaudeFormat = false;
+
+      for (const line of testLines) {
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type === "messages" || parsed.type === "token-usage") {
+            hasAmpFormat = true;
+          }
+          if (parsed.type === "user" || parsed.type === "assistant" || parsed.type === "system" || parsed.type === "result") {
+            hasClaudeFormat = true;
+          }
+        } catch {
+          // Skip invalid lines
+        }
+      }
+
+      return {
+        isValidJsonl: true,
+        jsonlFormat: hasAmpFormat ? "amp" : hasClaudeFormat ? "claude" : "unknown"
+      };
     } catch {
-      return false;
+      return { isValidJsonl: false, jsonlFormat: null };
     }
-  }, [isAmpExecutor, executionProcess.stdout]);
+  }, [isAmpExecutor, isClaudeExecutor, executionProcess.stdout]);
+
+  // Set initial view mode based on JSONL detection
+  useEffect(() => {
+    if (isValidJsonl) {
+      setViewMode("conversation");
+    }
+  }, [isValidJsonl]);
 
   if (!hasStdout && !hasStderr) {
     return (
@@ -64,13 +97,18 @@ export function ExecutionOutputViewer({
     <Card className="">
       <CardContent className="p-3">
         <div className="space-y-3">
-          {/* View mode toggle for Amp executor with valid JSONL */}
-          {isAmpExecutor && isValidJsonl && hasStdout && (
+          {/* View mode toggle for executors with valid JSONL */}
+          {isValidJsonl && hasStdout && (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   {executor} output
                 </Badge>
+                {jsonlFormat && (
+                  <Badge variant="secondary" className="text-xs">
+                    {jsonlFormat} format
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <Button
@@ -98,7 +136,7 @@ export function ExecutionOutputViewer({
           {/* Output content */}
           {hasStdout && (
             <div>
-              {isAmpExecutor && isValidJsonl && viewMode === "conversation" ? (
+              {isValidJsonl && viewMode === "conversation" ? (
                 <ConversationViewer
                   jsonlOutput={executionProcess.stdout || ""}
                 />
