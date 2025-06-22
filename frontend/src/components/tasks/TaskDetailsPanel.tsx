@@ -140,7 +140,9 @@ export function TaskDetailsPanel({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [selectedExecutor, setSelectedExecutor] = useState<string>("claude");
   const [isStopping, setIsStopping] = useState(false);
-  const [expandedOutputs, setExpandedOutputs] = useState<Set<string>>(new Set());
+  const [expandedOutputs, setExpandedOutputs] = useState<Set<string>>(
+    new Set()
+  );
   const { config } = useConfig();
 
   // Available executors
@@ -159,10 +161,15 @@ export function TaskDetailsPanel({
 
     // Group activities by execution_process_id and get the latest one for each
     const latestActivitiesByProcess = new Map<string, TaskAttemptActivity>();
-    
+
     attemptActivities.forEach((activity) => {
-      const existing = latestActivitiesByProcess.get(activity.execution_process_id);
-      if (!existing || new Date(activity.created_at) > new Date(existing.created_at)) {
+      const existing = latestActivitiesByProcess.get(
+        activity.execution_process_id
+      );
+      if (
+        !existing ||
+        new Date(activity.created_at) > new Date(existing.created_at)
+      ) {
         latestActivitiesByProcess.set(activity.execution_process_id, activity);
       }
     });
@@ -380,7 +387,7 @@ export function TaskDetailsPanel({
   };
 
   const toggleOutputExpansion = (processId: string) => {
-    setExpandedOutputs(prev => {
+    setExpandedOutputs((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(processId)) {
         newSet.delete(processId);
@@ -612,8 +619,6 @@ export function TaskDetailsPanel({
                       <Button variant="outline" size="sm" asChild>
                         <Link
                           to={`/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/compare`}
-                          target="_blank"
-                          rel="noopener noreferrer"
                         >
                           <FileText className="h-4 w-4 mr-1" />
                           Changes
@@ -684,11 +689,13 @@ export function TaskDetailsPanel({
                                     activity.execution_process_id
                                   ] && (
                                     <div className="mt-2">
-                                      <div 
+                                      <div
                                         className={`transition-all duration-200 ${
-                                          expandedOutputs.has(activity.execution_process_id) 
-                                            ? '' 
-                                            : 'max-h-64 overflow-hidden'
+                                          expandedOutputs.has(
+                                            activity.execution_process_id
+                                          )
+                                            ? ""
+                                            : "max-h-64 overflow-hidden"
                                         }`}
                                       >
                                         <ExecutionOutputViewer
@@ -698,17 +705,24 @@ export function TaskDetailsPanel({
                                             ]
                                           }
                                           executor={
-                                            selectedAttempt?.executor || undefined
+                                            selectedAttempt?.executor ||
+                                            undefined
                                           }
                                         />
                                       </div>
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => toggleOutputExpansion(activity.execution_process_id)}
+                                        onClick={() =>
+                                          toggleOutputExpansion(
+                                            activity.execution_process_id
+                                          )
+                                        }
                                         className="mt-2 p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
                                       >
-                                        {expandedOutputs.has(activity.execution_process_id) ? (
+                                        {expandedOutputs.has(
+                                          activity.execution_process_id
+                                        ) ? (
                                           <>
                                             <ChevronUp className="h-3 w-3 mr-1" />
                                             Show less
