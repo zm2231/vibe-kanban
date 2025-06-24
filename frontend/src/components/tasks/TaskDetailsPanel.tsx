@@ -889,90 +889,92 @@ export function TaskDetailsPanel({
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
-                        <div className="flex">
+                        {(isAttemptRunning || isStopping) ? (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => createNewAttempt()}
-                                  className="rounded-r-none border-r-0"
+                                  onClick={stopAllExecutions}
+                                  disabled={isStopping}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
                                 >
-                                  {selectedAttempt ? "Retry" : "Start"}
+                                  <StopCircle className="h-4 w-4 mr-2" />
+                                  {isStopping ? "Stopping..." : "Stop Attempt"}
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>{selectedAttempt ? "Retry task with current executor" : "Start task with current executor"}</p>
+                                <p>{isStopping ? "Stopping execution..." : "Stop execution"}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <DropdownMenu>
+                        ) : (
+                          <div className="flex">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="rounded-l-none px-2"
-                                    >
-                                      <Settings2 className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => createNewAttempt()}
+                                    className="rounded-r-none border-r-0"
+                                  >
+                                    {selectedAttempt ? "New Attempt" : "Start Attempt"}
+                                  </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Choose executor</p>
+                                  <p>{selectedAttempt ? "Create new attempt with current executor" : "Start new attempt with current executor"}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <DropdownMenuContent align="end">
-                              {availableExecutors.map((executor) => (
-                                <DropdownMenuItem
-                                  key={executor.id}
-                                  onClick={() => setSelectedExecutor(executor.id)}
-                                  className={
-                                    selectedExecutor === executor.id
-                                      ? "bg-accent"
-                                      : ""
-                                  }
-                                >
-                                  {executor.name}
-                                  {config?.executor.type === executor.id &&
-                                    " (Default)"}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                            <DropdownMenu>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-l-none px-2"
+                                      >
+                                        <Settings2 className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Choose executor</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <DropdownMenuContent align="end">
+                                {availableExecutors.map((executor) => (
+                                  <DropdownMenuItem
+                                    key={executor.id}
+                                    onClick={() => setSelectedExecutor(executor.id)}
+                                    className={
+                                      selectedExecutor === executor.id
+                                        ? "bg-accent"
+                                        : ""
+                                    }
+                                  >
+                                    {executor.name}
+                                    {config?.executor.type === executor.id &&
+                                      " (Default)"}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )}
                       </div>
 
                       {selectedAttempt && (
                         <>
                           <div className="h-4 w-px bg-border" />
                           
-                          {/* Execution Control Group */}
+                          {/* Dev Server Control Group */}
                           <div className="flex items-center gap-1">
-                            {(isAttemptRunning || isStopping) && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={stopAllExecutions}
-                                      disabled={isStopping}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                    >
-                                      <StopCircle className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>{isStopping ? "Stopping execution..." : "Stop execution"}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
