@@ -191,9 +191,9 @@ export function TaskAttemptComparePage() {
 
     switch (chunkType) {
       case "Insert":
-        return `${baseClass} bg-green-50 text-green-800 border-l-2 border-green-400`;
+        return `${baseClass} bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border-l-2 border-green-400 dark:border-green-500`;
       case "Delete":
-        return `${baseClass} bg-red-50 text-red-800 border-l-2 border-red-400`;
+        return `${baseClass} bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border-l-2 border-red-400 dark:border-red-500`;
       case "Equal":
       default:
         return `${baseClass} text-muted-foreground`;
@@ -624,7 +624,7 @@ export function TaskAttemptComparePage() {
                         onClick={() =>
                           toggleExpandSection(section.expandKey!)
                         }
-                          className="w-full h-8 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-b border-gray-200 rounded-none"
+                          className="w-full h-8 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50 border-t border-b border-gray-200 dark:border-gray-700 rounded-none"
                         >
                         <ChevronDown className="h-3 w-3 mr-1" />
                           Show {lineCount} more lines
@@ -645,7 +645,7 @@ export function TaskAttemptComparePage() {
                                   onClick={() =>
                                     toggleExpandSection(section.expandKey!)
                                   }
-                                  className="w-full h-8 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-b border-gray-200 rounded-none"
+                                  className="w-full h-8 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50 border-t border-b border-gray-200 dark:border-gray-700 rounded-none"
                                 >
                                   <ChevronUp className="h-3 w-3 mr-1" />
                                   Hide expanded lines
@@ -656,7 +656,7 @@ export function TaskAttemptComparePage() {
                                 key={`${sectionIndex}-${lineIndex}`}
                                 className={getChunkClassName(line.chunkType)}
                               >
-                                <div className="flex-shrink-0 w-16 px-2 text-xs text-gray-500 bg-gray-50 border-r select-none">
+                                <div className="flex-shrink-0 w-16 px-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 select-none">
                                   <span className="inline-block w-6 text-right">
                                     {line.oldLineNumber || ""}
                                   </span>
