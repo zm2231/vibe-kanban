@@ -4,7 +4,6 @@ import {
   X,
   History,
   Clock,
-  FileText,
   Code,
   ChevronDown,
   ChevronUp,
@@ -15,6 +14,7 @@ import {
   Send,
   AlertCircle,
   Play,
+  GitCompare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -700,26 +700,53 @@ export function TaskDetailsPanel({
                     </div>
                     <div className="flex items-center gap-1">
                       {onEditTask && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onEditTask(task)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onEditTask(task)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit task</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       {onDeleteTask && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onDeleteTask(task.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onDeleteTask(task.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete task</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
-                      <Button variant="ghost" size="icon" onClick={onClose}>
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={onClose}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Close panel</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
 
@@ -803,78 +830,105 @@ export function TaskDetailsPanel({
                       {/* Attempt Management Group */}
                       <div className="flex items-center gap-1">
                         {taskAttempts.length > 1 && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <History className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-64">
-                              {taskAttempts.map((attempt) => (
-                                <DropdownMenuItem
-                                  key={attempt.id}
-                                  onClick={() => handleAttemptChange(attempt.id)}
-                                  className={
-                                    selectedAttempt?.id === attempt.id
-                                      ? "bg-accent"
-                                      : ""
-                                  }
-                                >
-                                  <div className="flex flex-col w-full">
-                                    <span className="font-medium text-sm">
-                                      {new Date(
-                                        attempt.created_at
-                                      ).toLocaleDateString()}{" "}
-                                      {new Date(
-                                        attempt.created_at
-                                      ).toLocaleTimeString()}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {attempt.executor || "executor"}
-                                    </span>
-                                  </div>
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <History className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="w-64">
+                                    {taskAttempts.map((attempt) => (
+                                      <DropdownMenuItem
+                                        key={attempt.id}
+                                        onClick={() => handleAttemptChange(attempt.id)}
+                                        className={
+                                          selectedAttempt?.id === attempt.id
+                                            ? "bg-accent"
+                                            : ""
+                                        }
+                                      >
+                                        <div className="flex flex-col w-full">
+                                          <span className="font-medium text-sm">
+                                            {new Date(
+                                              attempt.created_at
+                                            ).toLocaleDateString()}{" "}
+                                            {new Date(
+                                              attempt.created_at
+                                            ).toLocaleTimeString()}
+                                          </span>
+                                          <span className="text-xs text-muted-foreground">
+                                            {attempt.executor || "executor"}
+                                          </span>
+                                        </div>
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>View attempt history</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                         <div className="flex">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => createNewAttempt()}
-                            className="rounded-r-none border-r-0"
-                          >
-                            {selectedAttempt ? "Retry" : "Start"}
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="rounded-l-none px-2"
-                              >
-                                <Settings2 className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {availableExecutors.map((executor) => (
-                                <DropdownMenuItem
-                                  key={executor.id}
-                                  onClick={() => setSelectedExecutor(executor.id)}
-                                  className={
-                                    selectedExecutor === executor.id
-                                      ? "bg-accent"
-                                      : ""
-                                  }
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => createNewAttempt()}
+                                  className="rounded-r-none border-r-0"
                                 >
-                                  {executor.name}
-                                  {selectedExecutor === executor.id &&
-                                    " (Default)"}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                  {selectedAttempt ? "Retry" : "Start"}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{selectedAttempt ? "Retry task with current executor" : "Start task with current executor"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="rounded-l-none px-2"
+                                    >
+                                      <Settings2 className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    {availableExecutors.map((executor) => (
+                                      <DropdownMenuItem
+                                        key={executor.id}
+                                        onClick={() => setSelectedExecutor(executor.id)}
+                                        className={
+                                          selectedExecutor === executor.id
+                                            ? "bg-accent"
+                                            : ""
+                                        }
+                                      >
+                                        {executor.name}
+                                        {selectedExecutor === executor.id &&
+                                          " (Default)"}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Choose executor</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </div>
 
@@ -885,15 +939,24 @@ export function TaskDetailsPanel({
                           {/* Execution Control Group */}
                           <div className="flex items-center gap-1">
                             {(isAttemptRunning || isStopping) && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={stopAllExecutions}
-                                disabled={isStopping}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
-                              >
-                                <StopCircle className="h-4 w-4" />
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={stopAllExecutions}
+                                      disabled={isStopping}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                    >
+                                      <StopCircle className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{isStopping ? "Stopping execution..." : "Stop execution"}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                             <TooltipProvider>
                               <Tooltip>
@@ -975,20 +1038,38 @@ export function TaskDetailsPanel({
 
                           {/* Code Actions Group */}
                           <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openInEditor()}
-                            >
-                              <Code className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" asChild>
-                              <Link
-                                to={`/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/compare`}
-                              >
-                                <FileText className="h-4 w-4" />
-                              </Link>
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openInEditor()}
+                                  >
+                                    <Code className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Open in editor</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link
+                                      to={`/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/compare`}
+                                    >
+                                      <GitCompare className="h-4 w-4" />
+                                    </Link>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>View code changes</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </>
                       )}
