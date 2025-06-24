@@ -6,13 +6,13 @@ use crate::executor::{Executor, ExecutorError};
 use crate::models::project::Project;
 use crate::models::task::Task;
 
-/// Executor for running project setup scripts
-pub struct SetupScriptExecutor {
+/// Executor for running project dev server scripts
+pub struct DevServerExecutor {
     pub script: String,
 }
 
 #[async_trait]
-impl Executor for SetupScriptExecutor {
+impl Executor for DevServerExecutor {
     async fn spawn(
         &self,
         pool: &sqlx::SqlitePool,

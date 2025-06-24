@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::models::{
-    execution_process::ExecutionProcess,
+    execution_process::{ExecutionProcess, ExecutionProcessSummary},
     task::Task,
     task_attempt::{
         BranchStatus, CreateFollowUpAttempt, CreateTaskAttempt, TaskAttempt, TaskAttemptStatus,
@@ -431,7 +431,7 @@ pub async fn rebase_task_attempt(
 pub async fn get_task_attempt_execution_processes(
     Path((project_id, task_id, attempt_id)): Path<(Uuid, Uuid, Uuid)>,
     Extension(pool): Extension<SqlitePool>,
-) -> Result<ResponseJson<ApiResponse<Vec<ExecutionProcess>>>, StatusCode> {
+) -> Result<ResponseJson<ApiResponse<Vec<ExecutionProcessSummary>>>, StatusCode> {
     // Verify task attempt exists and belongs to the correct task
     match TaskAttempt::exists_for_task(&pool, attempt_id, task_id, project_id).await {
         Ok(false) => return Err(StatusCode::NOT_FOUND),
@@ -442,7 +442,7 @@ pub async fn get_task_attempt_execution_processes(
         Ok(true) => {}
     }
 
-    match ExecutionProcess::find_by_task_attempt_id(&pool, attempt_id).await {
+    match ExecutionProcess::find_summaries_by_task_attempt_id(&pool, attempt_id).await {
         Ok(processes) => Ok(ResponseJson(ApiResponse {
             success: true,
             data: Some(processes),
@@ -549,30 +549,35 @@ pub async fn stop_all_execution_processes(
                     tracing::error!("Failed to update execution process status: {}", e);
                     errors.push(format!("Failed to update process {} status", process.id));
                 } else {
-                    // Create a new activity record to mark as stopped
-                    let activity_id = Uuid::new_v4();
-                    let create_activity = CreateTaskAttemptActivity {
-                        execution_process_id: process.id,
-                        status: Some(TaskAttemptStatus::ExecutorFailed),
-                        note: Some(format!(
-                            "Execution process {:?} ({}) stopped by user",
-                            process.process_type, process.id
-                        )),
-                    };
+                    // Create activity record for stopped processes (skip dev servers)
+                    if !matches!(
+                        process.process_type,
+                        crate::models::execution_process::ExecutionProcessType::DevServer
+                    ) {
+                        let activity_id = Uuid::new_v4();
+                        let create_activity = CreateTaskAttemptActivity {
+                            execution_process_id: process.id,
+                            status: Some(TaskAttemptStatus::ExecutorFailed),
+                            note: Some(format!(
+                                "Execution process {:?} ({}) stopped by user",
+                                process.process_type, process.id
+                            )),
+                        };
 
-                    if let Err(e) = TaskAttemptActivity::create(
-                        &pool,
-                        &create_activity,
-                        activity_id,
-                        TaskAttemptStatus::ExecutorFailed,
-                    )
-                    .await
-                    {
-                        tracing::error!("Failed to create stopped activity: {}", e);
-                        errors.push(format!(
-                            "Failed to create activity for process {}",
-                            process.id
-                        ));
+                        if let Err(e) = TaskAttemptActivity::create(
+                            &pool,
+                            &create_activity,
+                            activity_id,
+                            TaskAttemptStatus::ExecutorFailed,
+                        )
+                        .await
+                        {
+                            tracing::error!("Failed to create stopped activity: {}", e);
+                            errors.push(format!(
+                                "Failed to create activity for process {}",
+                                process.id
+                            ));
+                        }
                     }
                 }
             }
@@ -673,27 +678,32 @@ pub async fn stop_execution_process(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    // Create a new activity record to mark as stopped
-    let activity_id = Uuid::new_v4();
-    let create_activity = CreateTaskAttemptActivity {
-        execution_process_id: process_id,
-        status: Some(TaskAttemptStatus::ExecutorFailed),
-        note: Some(format!(
-            "Execution process {:?} ({}) stopped by user",
-            process.process_type, process_id
-        )),
-    };
+    // Create activity record for stopped processes (skip dev servers)
+    if !matches!(
+        process.process_type,
+        crate::models::execution_process::ExecutionProcessType::DevServer
+    ) {
+        let activity_id = Uuid::new_v4();
+        let create_activity = CreateTaskAttemptActivity {
+            execution_process_id: process_id,
+            status: Some(TaskAttemptStatus::ExecutorFailed),
+            note: Some(format!(
+                "Execution process {:?} ({}) stopped by user",
+                process.process_type, process_id
+            )),
+        };
 
-    if let Err(e) = TaskAttemptActivity::create(
-        &pool,
-        &create_activity,
-        activity_id,
-        TaskAttemptStatus::ExecutorFailed,
-    )
-    .await
-    {
-        tracing::error!("Failed to create stopped activity: {}", e);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        if let Err(e) = TaskAttemptActivity::create(
+            &pool,
+            &create_activity,
+            activity_id,
+            TaskAttemptStatus::ExecutorFailed,
+        )
+        .await
+        {
+            tracing::error!("Failed to create stopped activity: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     }
 
     Ok(ResponseJson(ApiResponse {
@@ -793,6 +803,86 @@ pub async fn create_followup_attempt(
     }
 }
 
+pub async fn start_dev_server(
+    Path((project_id, task_id, attempt_id)): Path<(Uuid, Uuid, Uuid)>,
+    Extension(pool): Extension<SqlitePool>,
+    Extension(app_state): Extension<crate::app_state::AppState>,
+) -> Result<ResponseJson<ApiResponse<()>>, StatusCode> {
+    // Verify task attempt exists and belongs to the correct task
+    match TaskAttempt::exists_for_task(&pool, attempt_id, task_id, project_id).await {
+        Ok(false) => return Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            tracing::error!("Failed to check task attempt existence: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+        Ok(true) => {}
+    }
+
+    // Stop any existing dev servers for this project
+    let existing_dev_servers =
+        match ExecutionProcess::find_running_dev_servers_by_project(&pool, project_id).await {
+            Ok(servers) => servers,
+            Err(e) => {
+                tracing::error!(
+                    "Failed to find running dev servers for project {}: {}",
+                    project_id,
+                    e
+                );
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
+
+    for dev_server in existing_dev_servers {
+        tracing::info!(
+            "Stopping existing dev server {} for project {}",
+            dev_server.id,
+            project_id
+        );
+
+        // Stop the running process
+        if let Err(e) = app_state.stop_running_execution_by_id(dev_server.id).await {
+            tracing::error!("Failed to stop dev server {}: {}", dev_server.id, e);
+        } else {
+            // Update the execution process status in the database
+            if let Err(e) = ExecutionProcess::update_completion(
+                &pool,
+                dev_server.id,
+                crate::models::execution_process::ExecutionProcessStatus::Killed,
+                None,
+            )
+            .await
+            {
+                tracing::error!(
+                    "Failed to update dev server {} status: {}",
+                    dev_server.id,
+                    e
+                );
+            }
+        }
+    }
+
+    // Start dev server execution
+    match TaskAttempt::start_dev_server(&pool, &app_state, attempt_id, task_id, project_id).await {
+        Ok(_) => Ok(ResponseJson(ApiResponse {
+            success: true,
+            data: None,
+            message: Some("Dev server started successfully".to_string()),
+        })),
+        Err(e) => {
+            tracing::error!(
+                "Failed to start dev server for task attempt {}: {}",
+                attempt_id,
+                e
+            );
+            Ok(ResponseJson(ApiResponse {
+                success: false,
+                data: None,
+                message: Some(e.to_string()),
+            }))
+        }
+    }
+}
+
 pub fn task_attempts_router() -> Router {
     use axum::routing::post;
 
@@ -849,5 +939,9 @@ pub fn task_attempts_router() -> Router {
         .route(
             "/projects/:project_id/tasks/:task_id/attempts/:attempt_id/follow-up",
             post(create_followup_attempt),
+        )
+        .route(
+            "/projects/:project_id/tasks/:task_id/attempts/:attempt_id/start-dev-server",
+            post(start_dev_server),
         )
 }

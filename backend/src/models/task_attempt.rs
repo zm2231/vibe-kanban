@@ -18,6 +18,7 @@ pub enum TaskAttemptError {
     Git(GitError),
     TaskNotFound,
     ProjectNotFound,
+    ValidationError(String),
 }
 
 impl std::fmt::Display for TaskAttemptError {
@@ -27,6 +28,7 @@ impl std::fmt::Display for TaskAttemptError {
             TaskAttemptError::Git(e) => write!(f, "Git error: {}", e),
             TaskAttemptError::TaskNotFound => write!(f, "Task not found"),
             TaskAttemptError::ProjectNotFound => write!(f, "Project not found"),
+            TaskAttemptError::ValidationError(e) => write!(f, "Validation error: {}", e),
         }
     }
 }
@@ -486,6 +488,49 @@ impl TaskAttempt {
         .await
     }
 
+    /// Start a dev server for this task attempt
+    pub async fn start_dev_server(
+        pool: &SqlitePool,
+        app_state: &crate::app_state::AppState,
+        attempt_id: Uuid,
+        task_id: Uuid,
+        project_id: Uuid,
+    ) -> Result<(), TaskAttemptError> {
+        let task_attempt = TaskAttempt::find_by_id(pool, attempt_id)
+            .await?
+            .ok_or(TaskAttemptError::TaskNotFound)?;
+
+        // Get the project to access the dev_script
+        let project = crate::models::project::Project::find_by_id(pool, project_id)
+            .await?
+            .ok_or(TaskAttemptError::TaskNotFound)?;
+
+        let dev_script = project.dev_script.ok_or_else(|| {
+            TaskAttemptError::ValidationError(
+                "No dev script configured for this project".to_string(),
+            )
+        })?;
+
+        if dev_script.trim().is_empty() {
+            return Err(TaskAttemptError::ValidationError(
+                "Dev script is empty".to_string(),
+            ));
+        }
+
+        Self::start_process_execution(
+            pool,
+            app_state,
+            attempt_id,
+            task_id,
+            crate::executor::ExecutorType::DevServer(dev_script),
+            "Starting dev server".to_string(),
+            TaskAttemptStatus::ExecutorRunning, // Dev servers don't create activities, just use generic status
+            crate::models::execution_process::ExecutionProcessType::DevServer,
+            &task_attempt.worktree_path,
+        )
+        .await
+    }
+
     /// Start a follow-up execution using the same executor type as the first process
     pub async fn start_followup_execution(
         pool: &SqlitePool,
@@ -600,9 +645,14 @@ impl TaskAttempt {
             Self::create_executor_session_record(pool, attempt_id, task_id, process_id).await?;
         }
 
-        // Create activity record
-        Self::create_activity_record(pool, process_id, activity_status.clone(), &activity_note)
-            .await?;
+        // Create activity record (skip for dev servers as they run in parallel)
+        if !matches!(
+            process_type,
+            crate::models::execution_process::ExecutionProcessType::DevServer
+        ) {
+            Self::create_activity_record(pool, process_id, activity_status.clone(), &activity_note)
+                .await?;
+        }
 
         tracing::info!("Starting {} for task attempt {}", activity_note, attempt_id);
 
@@ -645,6 +695,11 @@ impl TaskAttempt {
                 "bash".to_string(),
                 Some(serde_json::to_string(&["-c", "setup_script"]).unwrap()),
                 None, // Setup scripts don't have an executor type
+            ),
+            crate::executor::ExecutorType::DevServer(_) => (
+                "bash".to_string(),
+                Some(serde_json::to_string(&["-c", "dev_server"]).unwrap()),
+                None, // Dev servers don't have an executor type
             ),
             crate::executor::ExecutorType::CodingAgent(config) => {
                 let executor_type_str = match config {
@@ -748,11 +803,19 @@ impl TaskAttempt {
         process_id: Uuid,
         worktree_path: &str,
     ) -> Result<tokio::process::Child, TaskAttemptError> {
-        use crate::executors::SetupScriptExecutor;
+        use crate::executors::{DevServerExecutor, SetupScriptExecutor};
 
         let result = match executor_type {
             crate::executor::ExecutorType::SetupScript(script) => {
                 let executor = SetupScriptExecutor {
+                    script: script.clone(),
+                };
+                executor
+                    .execute_streaming(pool, task_id, attempt_id, process_id, worktree_path)
+                    .await
+            }
+            crate::executor::ExecutorType::DevServer(script) => {
+                let executor = DevServerExecutor {
                     script: script.clone(),
                 };
                 executor

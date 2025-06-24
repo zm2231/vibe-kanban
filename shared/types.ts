@@ -24,11 +24,11 @@ export type ExecutorConfig = { "type": "echo" } | { "type": "claude" } | { "type
 
 export type ExecutorConstants = { executor_types: Array<ExecutorConfig>, executor_labels: Array<string>, };
 
-export type CreateProject = { name: string, git_repo_path: string, use_existing_repo: boolean, setup_script: string | null, };
+export type CreateProject = { name: string, git_repo_path: string, use_existing_repo: boolean, setup_script: string | null, dev_script: string | null, };
 
-export type Project = { id: string, name: string, git_repo_path: string, setup_script: string | null, created_at: Date, updated_at: Date, };
+export type Project = { id: string, name: string, git_repo_path: string, setup_script: string | null, dev_script: string | null, created_at: Date, updated_at: Date, };
 
-export type UpdateProject = { name: string | null, git_repo_path: string | null, setup_script: string | null, };
+export type UpdateProject = { name: string | null, git_repo_path: string | null, setup_script: string | null, dev_script: string | null, };
 
 export type SearchResult = { path: string, is_file: boolean, match_type: SearchMatchType, };
 
@@ -73,6 +73,8 @@ export type WorktreeDiff = { files: Array<FileDiff>, };
 export type BranchStatus = { is_behind: boolean, commits_behind: number, commits_ahead: number, up_to_date: boolean, merged: boolean, };
 
 export type ExecutionProcess = { id: string, task_attempt_id: string, process_type: ExecutionProcessType, executor_type: string | null, status: ExecutionProcessStatus, command: string, args: string | null, working_directory: string, stdout: string | null, stderr: string | null, exit_code: bigint | null, started_at: string, completed_at: string | null, created_at: string, updated_at: string, };
+
+export type ExecutionProcessSummary = { id: string, task_attempt_id: string, process_type: ExecutionProcessType, executor_type: string | null, status: ExecutionProcessStatus, command: string, args: string | null, working_directory: string, exit_code: bigint | null, started_at: string, completed_at: string | null, created_at: string, updated_at: string, };
 
 export type ExecutionProcessStatus = "running" | "completed" | "failed" | "killed";
 
