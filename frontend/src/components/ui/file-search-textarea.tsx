@@ -177,25 +177,28 @@ export function FileSearchTextarea({
     const lineHeight = parseInt(computedStyle.lineHeight) || 20
     const fontSize = parseInt(computedStyle.fontSize) || 14
     const charWidth = fontSize * 0.6 // Approximate character width
+    const paddingLeft = parseInt(computedStyle.paddingLeft) || 12
+    const paddingTop = parseInt(computedStyle.paddingTop) || 8
     
     // Position relative to textarea
-    const relativeTop = (currentLine + 1) * lineHeight + 8
-    const relativeLeft = charWidth * charInLine
+    const relativeTop = paddingTop + (currentLine * lineHeight) + lineHeight
+    const relativeLeft = paddingLeft + (charWidth * charInLine)
     
     // Convert to viewport coordinates
     const viewportTop = textareaRect.top + relativeTop
     const viewportLeft = textareaRect.left + relativeLeft
     
-    // Adjust for viewport boundaries
-    const dropdownHeight = 240 // max-h-60 = 240px
+    // Dropdown dimensions
     const dropdownWidth = 256 // min-w-64 = 256px
+    const minDropdownHeight = 120
+    const maxDropdownHeight = 240 // max-h-60 = 240px
     
     let finalTop = viewportTop
     let finalLeft = viewportLeft
-    let maxHeight = dropdownHeight
+    let maxHeight = maxDropdownHeight
     
     // Prevent going off the right edge
-    if (viewportLeft + dropdownWidth > window.innerWidth) {
+    if (viewportLeft + dropdownWidth > window.innerWidth - 16) {
       finalLeft = window.innerWidth - dropdownWidth - 16
     }
     
@@ -205,20 +208,22 @@ export function FileSearchTextarea({
     }
     
     // Prevent going off the bottom edge
-    if (viewportTop + dropdownHeight > window.innerHeight) {
-      // Try positioning above the line instead
-      const aboveTop = textareaRect.top + (currentLine * lineHeight) - dropdownHeight - 8
-      if (aboveTop > 16) {
-        finalTop = aboveTop
-      } else {
-        // If can't fit above either, limit height and scroll
-        maxHeight = window.innerHeight - viewportTop - 16
-        if (maxHeight < 120) {
-          // If still too small, position at bottom with limited height
-          finalTop = window.innerHeight - 120 - 16
-          maxHeight = 120
-        }
-      }
+    const availableSpaceBelow = window.innerHeight - viewportTop - 16
+    const availableSpaceAbove = textareaRect.top + (currentLine * lineHeight) - 16
+    
+    if (availableSpaceBelow < minDropdownHeight && availableSpaceAbove > availableSpaceBelow) {
+      // Position above the cursor line
+      finalTop = textareaRect.top + paddingTop + (currentLine * lineHeight) - maxDropdownHeight - 8
+      maxHeight = Math.min(maxDropdownHeight, availableSpaceAbove)
+    } else {
+      // Position below the cursor line
+      maxHeight = Math.min(maxDropdownHeight, availableSpaceBelow)
+    }
+    
+    // Ensure minimum height
+    if (maxHeight < minDropdownHeight) {
+      maxHeight = minDropdownHeight
+      finalTop = Math.max(16, window.innerHeight - minDropdownHeight - 16)
     }
     
     return { top: finalTop, left: finalLeft, maxHeight }

@@ -1235,7 +1235,7 @@ export function TaskDetailsPanel({
                         <AlertDescription>{followUpError}</AlertDescription>
                       </Alert>
                     )}
-                    <div className="flex gap-3">
+                    <div className="space-y-3">
                       <FileSearchTextarea
                         placeholder="Ask a follow-up question about this task... Type @ to search files."
                         value={followUpMessage}
@@ -1255,12 +1255,12 @@ export function TaskDetailsPanel({
                             }
                           }
                         }}
-                        className="flex-1 min-h-[80px] resize-none"
+                        className="w-full min-h-[80px] resize-none"
                         disabled={!canSendFollowUp}
                         projectId={projectId}
                         rows={4}
                       />
-                      <div className="flex flex-col justify-end">
+                      <div className="flex justify-end">
                         <Button
                           onClick={handleSendFollowUp}
                           disabled={
@@ -1273,7 +1273,10 @@ export function TaskDetailsPanel({
                           {isSendingFollowUp ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
                           ) : (
-                            <Send className="h-4 w-4" />
+                            <>
+                              <Send className="h-4 w-4 mr-2" />
+                              Send
+                            </>
                           )}
                         </Button>
                       </div>
