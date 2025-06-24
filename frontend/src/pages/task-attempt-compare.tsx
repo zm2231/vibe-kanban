@@ -58,6 +58,7 @@ export function TaskAttemptComparePage() {
   const [showAllUnchanged, setShowAllUnchanged] = useState(false);
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
+  const [showUncommittedWarning, setShowUncommittedWarning] = useState(false);
 
   useEffect(() => {
     if (projectId && taskId && attemptId) {
@@ -125,6 +126,18 @@ export function TaskAttemptComparePage() {
   const handleMergeClick = async () => {
     if (!projectId || !taskId || !attemptId) return;
 
+    // Check for uncommitted changes and show warning dialog
+    if (branchStatus?.has_uncommitted_changes) {
+      setShowUncommittedWarning(true);
+      return;
+    }
+
+    await performMerge();
+  };
+
+  const performMerge = async () => {
+    if (!projectId || !taskId || !attemptId) return;
+
     try {
       setMerging(true);
       const response = await makeRequest(
@@ -152,6 +165,15 @@ export function TaskAttemptComparePage() {
     } finally {
       setMerging(false);
     }
+  };
+
+  const handleConfirmMergeWithUncommitted = async () => {
+    setShowUncommittedWarning(false);
+    await performMerge();
+  };
+
+  const handleCancelMergeWithUncommitted = () => {
+    setShowUncommittedWarning(false);
   };
 
   const handleRebaseClick = async () => {
@@ -465,20 +487,28 @@ export function TaskAttemptComparePage() {
         <div className="flex items-center gap-4">
           {/* Branch Status */}
           {!branchStatusLoading && branchStatus && (
-            <div className="flex items-center gap-2 text-sm">
-              <GitBranch className="h-4 w-4" />
-              {branchStatus.up_to_date ? (
-                <span className="text-green-600">Up to date</span>
-              ) : branchStatus.is_behind === true ? (
-                <span className="text-orange-600">
-                  {branchStatus.commits_behind} commit
-                  {branchStatus.commits_behind !== 1 ? "s" : ""} behind main
-                </span>
-              ) : (
-                <span className="text-blue-600">
-                  {branchStatus.commits_ahead} commit
-                  {branchStatus.commits_ahead !== 1 ? "s" : ""} ahead of main
-                </span>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <GitBranch className="h-4 w-4" />
+                {branchStatus.up_to_date ? (
+                  <span className="text-green-600">Up to date</span>
+                ) : branchStatus.is_behind === true ? (
+                  <span className="text-orange-600">
+                    {branchStatus.commits_behind} commit
+                    {branchStatus.commits_behind !== 1 ? "s" : ""} behind main
+                  </span>
+                ) : (
+                  <span className="text-blue-600">
+                    {branchStatus.commits_ahead} commit
+                    {branchStatus.commits_ahead !== 1 ? "s" : ""} ahead of main
+                  </span>
+                )}
+              </div>
+              {branchStatus.has_uncommitted_changes && (
+                <div className="flex items-center gap-1 text-yellow-600">
+                  <FileText className="h-4 w-4" />
+                  <span>Uncommitted changes</span>
+                </div>
               )}
             </div>
           )}
@@ -714,6 +744,38 @@ export function TaskAttemptComparePage() {
               {deletingFiles.has(fileToDelete || "")
                 ? "Deleting..."
                 : "Delete File"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Uncommitted Changes Warning Dialog */}
+      <Dialog open={showUncommittedWarning} onOpenChange={() => handleCancelMergeWithUncommitted()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Uncommitted Changes Detected</DialogTitle>
+            <DialogDescription>
+              There are uncommitted changes in the worktree that will be included in the merge.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p className="text-sm text-yellow-800">
+                <strong>Warning:</strong> The worktree contains uncommitted changes (modified, added, or deleted files) 
+                that have not been committed to git. These changes will be permanently merged into the main branch.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelMergeWithUncommitted}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmMergeWithUncommitted}
+              disabled={merging}
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              {merging ? "Merging..." : "Merge Anyway"}
             </Button>
           </DialogFooter>
         </DialogContent>
