@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Play,
   GitCompare,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -1046,7 +1047,7 @@ export function TaskDetailsPanel({
                                     size="sm"
                                     onClick={() => openInEditor()}
                                   >
-                                    <Code className="h-4 w-4" />
+                                    <ExternalLink className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
