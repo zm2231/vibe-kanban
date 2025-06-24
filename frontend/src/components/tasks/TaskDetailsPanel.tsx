@@ -565,7 +565,7 @@ export function TaskDetailsPanel({
                           className={`text-sm whitespace-pre-wrap ${
                             !isDescriptionExpanded &&
                             task.description.length > 200
-                              ? "line-clamp-9"
+                              ? "line-clamp-6"
                               : ""
                           }`}
                         >
