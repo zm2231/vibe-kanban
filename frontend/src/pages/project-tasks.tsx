@@ -404,6 +404,7 @@ export function ProjectTasks() {
           onClose={handleClosePanel}
           onEditTask={handleEditTask}
           onDeleteTask={handleDeleteTask}
+          isDialogOpen={isTaskDialogOpen || isProjectSettingsOpen}
         />
       )}
 
