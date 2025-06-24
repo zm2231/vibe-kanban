@@ -126,6 +126,7 @@ pub struct BranchStatus {
     pub commits_ahead: usize,
     pub up_to_date: bool,
     pub merged: bool,
+    pub has_uncommitted_changes: bool,
 }
 
 impl TaskAttempt {
@@ -1229,6 +1230,17 @@ impl TaskAttempt {
         let worktree_head = worktree_repo.head()?.peel_to_commit()?;
         let worktree_oid = worktree_head.id();
 
+        // Check for uncommitted changes in the worktree
+        let has_uncommitted_changes = {
+            let statuses = worktree_repo.statuses(None)?;
+            statuses.iter().any(|entry| {
+                let status = entry.status();
+                // Check for any unstaged or staged changes
+                status.is_wt_modified() || status.is_wt_new() || status.is_wt_deleted() ||
+                status.is_index_modified() || status.is_index_new() || status.is_index_deleted()
+            })
+        };
+
         if main_oid == worktree_oid {
             // Branches are at the same commit
             return Ok(BranchStatus {
@@ -1237,6 +1249,7 @@ impl TaskAttempt {
                 commits_ahead: 0,
                 up_to_date: true,
                 merged: attempt.merge_commit.is_some(),
+                has_uncommitted_changes,
             });
         }
 
@@ -1260,6 +1273,7 @@ impl TaskAttempt {
             commits_ahead,
             up_to_date: commits_behind == 0 && commits_ahead == 0,
             merged: attempt.merge_commit.is_some(),
+            has_uncommitted_changes,
         })
     }
 
