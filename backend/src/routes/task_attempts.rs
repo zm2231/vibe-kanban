@@ -766,34 +766,31 @@ pub async fn create_followup_attempt(
         return Err(StatusCode::NOT_FOUND);
     }
 
-    // Start follow-up execution asynchronously
-    let pool_clone = pool.clone();
-    let app_state_clone = app_state.clone();
-    let prompt = payload.prompt.clone();
-    tokio::spawn(async move {
-        if let Err(e) = TaskAttempt::start_followup_execution(
-            &pool_clone,
-            &app_state_clone,
-            attempt_id,
-            task_id,
-            project_id,
-            &prompt,
-        )
-        .await
-        {
+    // Start follow-up execution synchronously to catch errors
+    match TaskAttempt::start_followup_execution(
+        &pool,
+        &app_state,
+        attempt_id,
+        task_id,
+        project_id,
+        &payload.prompt,
+    )
+    .await
+    {
+        Ok(_) => Ok(ResponseJson(ApiResponse {
+            success: true,
+            data: Some("Follow-up execution started successfully".to_string()),
+            message: Some("Follow-up execution started successfully".to_string()),
+        })),
+        Err(e) => {
             tracing::error!(
                 "Failed to start follow-up execution for task attempt {}: {}",
                 attempt_id,
                 e
             );
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
-    });
-
-    Ok(ResponseJson(ApiResponse {
-        success: true,
-        data: Some("Follow-up execution started successfully".to_string()),
-        message: Some("Follow-up execution started successfully".to_string()),
-    }))
+    }
 }
 
 pub fn task_attempts_router() -> Router {

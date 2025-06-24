@@ -13,9 +13,10 @@ import {
   Trash2,
   StopCircle,
   Send,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Chip } from "@/components/ui/chip";
 import { Textarea } from "@/components/ui/textarea";
@@ -150,6 +151,7 @@ export function TaskDetailsPanel({
   const [showEditorDialog, setShowEditorDialog] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [isSendingFollowUp, setIsSendingFollowUp] = useState(false);
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
   const { config } = useConfig();
 
   // Available executors
@@ -433,6 +435,7 @@ export function TaskDetailsPanel({
 
     try {
       setIsSendingFollowUp(true);
+      setFollowUpError(null);
       const response = await makeRequest(
         `/api/projects/${projectId}/tasks/${task.id}/attempts/${selectedAttempt.id}/follow-up`,
         {
@@ -452,10 +455,11 @@ export function TaskDetailsPanel({
         // Refresh activities to show the new follow-up execution
         fetchAttemptActivities(selectedAttempt.id);
       } else {
-        console.error("Failed to send follow-up:", await response.text());
+        const errorText = await response.text();
+        setFollowUpError(`Failed to start follow-up execution: ${errorText || response.statusText}`);
       }
     } catch (err) {
-      console.error("Failed to send follow-up:", err);
+      setFollowUpError(`Failed to send follow-up: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsSendingFollowUp(false);
     }
@@ -844,11 +848,20 @@ export function TaskDetailsPanel({
                     <Label className="text-sm font-medium">
                       Follow-up question
                     </Label>
+                    {followUpError && (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{followUpError}</AlertDescription>
+                      </Alert>
+                    )}
                     <div className="flex gap-2">
                       <Textarea
                         placeholder="Ask a follow-up question about this task..."
                         value={followUpMessage}
-                        onChange={(e) => setFollowUpMessage(e.target.value)}
+                        onChange={(e) => {
+                          setFollowUpMessage(e.target.value);
+                          if (followUpError) setFollowUpError(null);
+                        }}
                         onKeyDown={(e) => {
                           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                             e.preventDefault();
