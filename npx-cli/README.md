@@ -60,51 +60,40 @@ Vibe Kanban is a modern project management tool designed specifically for develo
 4. **Review Changes**: See exactly what was modified using git diffs
 5. **Merge Results**: Incorporate successful changes into your main codebase
 
-## API Endpoints
+## Core Functionality
 
-Vibe Kanban provides a comprehensive REST API:
+Vibe Kanban provides a complete project management experience with these key capabilities:
 
-### Projects (`/api/projects`)
-- `GET /projects` - List all projects
-- `POST /projects` - Create new project
-- `GET /projects/:id` - Get project details
-- `PUT /projects/:id` - Update project
-- `DELETE /projects/:id` - Delete project
-- `GET /projects/:id/search` - Search files in project
+**Project Repository Management**
+- Full CRUD operations for managing coding projects
+- Automatic git repository detection and validation  
+- Initialize new repositories or import existing ones
+- Project-wide file search functionality
 
-### Tasks (`/api/projects/:project_id/tasks`)
-- `GET /tasks` - List project tasks
-- `POST /tasks` - Create new task
-- `POST /tasks/create-and-start` - Create task and start execution
-- `GET /tasks/:task_id` - Get task details
-- `PUT /tasks/:task_id` - Update task
-- `DELETE /tasks/:task_id` - Delete task
+**Task Lifecycle Management**
+- Create, update, and delete tasks with rich descriptions
+- Track task progress through customizable status workflows
+- One-click task creation with immediate AI agent execution
+- Task attempt tracking with detailed execution history
 
-### Task Attempts (`/api/projects/:project_id/tasks/:task_id/attempts`)
-- `GET /attempts` - List task attempts
-- `POST /attempts` - Create new attempt
-- `GET /attempts/:attempt_id/activities` - Get execution activities
-- `GET /attempts/:attempt_id/diff` - View changes made
-- `POST /attempts/:attempt_id/merge` - Merge changes to main
-- `POST /attempts/:attempt_id/rebase` - Rebase onto main branch
-- `GET /attempts/:attempt_id/branch-status` - Check branch status
-- `POST /attempts/:attempt_id/open-editor` - Open in code editor
-- `POST /attempts/:attempt_id/follow-up` - Continue with follow-up execution
-- `POST /attempts/:attempt_id/start-dev-server` - Start development server
-- `POST /attempts/:attempt_id/stop` - Stop all execution processes
+**AI Agent Execution Environment**
+- Isolated git worktrees for safe code experimentation
+- Real-time execution monitoring and activity logging
+- Process management with ability to stop individual or all processes
+- Support for follow-up executions to iterate on solutions
 
-### Configuration (`/api/config`)
-- `GET /config` - Get current configuration
-- `POST /config` - Update configuration
-- `GET /config/constants` - Get available options
+**Code Change Management**
+- View detailed diffs of all changes made during task execution
+- Branch status monitoring to track divergence from main
+- One-click merging of successful changes back to main branch
+- Automatic rebasing to keep task branches up-to-date
+- Manual file deletion and cleanup capabilities
 
-### Filesystem (`/api/filesystem`)
-- `GET /filesystem/list` - Browse directories
-- `GET /filesystem/validate-git` - Validate git repository
-- `GET /filesystem/create-git` - Initialize new git repository
-
-### Health (`/api/health`)
-- `GET /health` - Service health check
+**Development Integration**
+- Open task worktrees directly in your preferred code editor
+- Start and manage development servers for testing changes
+- Browse local filesystem to add new projects
+- Health monitoring for service availability
 
 ## Configuration
 
