@@ -364,23 +364,6 @@ export function ProjectTasks() {
           </Button>
         </div>
 
-        <TaskFormDialog
-          isOpen={isTaskDialogOpen}
-          onOpenChange={setIsTaskDialogOpen}
-          task={editingTask}
-          projectId={projectId}
-          onCreateTask={handleCreateTask}
-          onCreateAndStartTask={handleCreateAndStartTask}
-          onUpdateTask={handleUpdateTask}
-        />
-
-        <ProjectForm
-          open={isProjectSettingsOpen}
-          onClose={() => setIsProjectSettingsOpen(false)}
-          onSuccess={handleProjectSettingsSuccess}
-          project={project}
-        />
-
         {/* Tasks View */}
         {tasks.length === 0 ? (
           <div className="max-w-7xl mx-auto">
@@ -423,6 +406,24 @@ export function ProjectTasks() {
           onDeleteTask={handleDeleteTask}
         />
       )}
+
+      {/* Dialogs - rendered at main container level to avoid stacking issues */}
+      <TaskFormDialog
+        isOpen={isTaskDialogOpen}
+        onOpenChange={setIsTaskDialogOpen}
+        task={editingTask}
+        projectId={projectId}
+        onCreateTask={handleCreateTask}
+        onCreateAndStartTask={handleCreateAndStartTask}
+        onUpdateTask={handleUpdateTask}
+      />
+
+      <ProjectForm
+        open={isProjectSettingsOpen}
+        onClose={() => setIsProjectSettingsOpen(false)}
+        onSuccess={handleProjectSettingsSuccess}
+        project={project}
+      />
     </div>
   );
 }
