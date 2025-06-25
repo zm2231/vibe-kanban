@@ -1,12 +1,14 @@
 use git2::Repository;
 use uuid::Uuid;
 
-use crate::app_state::AppState;
-use crate::models::{
-    execution_process::{ExecutionProcess, ExecutionProcessStatus, ExecutionProcessType},
-    task::{Task, TaskStatus},
-    task_attempt::{TaskAttempt, TaskAttemptStatus},
-    task_attempt_activity::{CreateTaskAttemptActivity, TaskAttemptActivity},
+use crate::{
+    app_state::AppState,
+    models::{
+        execution_process::{ExecutionProcess, ExecutionProcessStatus, ExecutionProcessType},
+        task::{Task, TaskStatus},
+        task_attempt::{TaskAttempt, TaskAttemptStatus},
+        task_attempt_activity::{CreateTaskAttemptActivity, TaskAttemptActivity},
+    },
 };
 
 /// Commit any unstaged changes in the worktree after execution completion

@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use tokio::process::{Child, Command};
 use uuid::Uuid;
 
-use crate::executor::{Executor, ExecutorError};
-use crate::models::project::Project;
-use crate::models::task::Task;
+use crate::{
+    executor::{Executor, ExecutorError},
+    models::{project::Project, task::Task},
+};
 
 /// Executor for running project dev server scripts
 pub struct DevServerExecutor {

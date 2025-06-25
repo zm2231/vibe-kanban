@@ -1,4 +1,5 @@
 use std::{env, fs, path::Path};
+
 use ts_rs::TS; // in [build-dependencies]
 
 fn generate_constants() -> String {

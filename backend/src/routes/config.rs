@@ -1,19 +1,22 @@
+use std::sync::Arc;
+
 use axum::{
     extract::Extension,
     response::Json as ResponseJson,
     routing::{get, post},
     Json, Router,
 };
-use std::sync::Arc;
-use tokio::sync::RwLock;
-
-use crate::models::{
-    config::{Config, EditorConstants, SoundConstants},
-    ApiResponse,
-};
-use crate::utils;
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 use ts_rs::TS;
+
+use crate::{
+    models::{
+        config::{Config, EditorConstants, SoundConstants},
+        ApiResponse,
+    },
+    utils,
+};
 
 pub fn config_router() -> Router {
     Router::new()

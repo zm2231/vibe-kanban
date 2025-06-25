@@ -1,15 +1,16 @@
+use std::path::Path;
+
 use chrono::{DateTime, Utc};
-use git2::build::CheckoutBuilder;
-use git2::{Error as GitError, MergeOptions, Oid, RebaseOptions, Repository};
+use git2::{
+    build::CheckoutBuilder, Error as GitError, MergeOptions, Oid, RebaseOptions, Repository,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool, Type};
-use std::path::Path;
 use tracing::{debug, error, info};
 use ts_rs::TS;
 use uuid::Uuid;
 
-use super::project::Project;
-use super::task::Task;
+use super::{project::Project, task::Task};
 use crate::executor::Executor;
 
 #[derive(Debug)]
@@ -542,8 +543,10 @@ impl TaskAttempt {
         project_id: Uuid,
         prompt: &str,
     ) -> Result<(), TaskAttemptError> {
-        use crate::models::executor_session::ExecutorSession;
-        use crate::models::task::{Task, TaskStatus};
+        use crate::models::{
+            executor_session::ExecutorSession,
+            task::{Task, TaskStatus},
+        };
 
         // Update task status to indicate follow-up execution has started
         Task::update_status(pool, task_id, project_id, TaskStatus::InProgress).await?;
@@ -646,10 +649,19 @@ impl TaskAttempt {
         ) {
             // Extract follow-up prompt if this is a follow-up execution
             let followup_prompt = match &executor_type {
-                crate::executor::ExecutorType::FollowUpCodingAgent { prompt, .. } => Some(prompt.clone()),
+                crate::executor::ExecutorType::FollowUpCodingAgent { prompt, .. } => {
+                    Some(prompt.clone())
+                }
                 _ => None,
             };
-            Self::create_executor_session_record(pool, attempt_id, task_id, process_id, followup_prompt).await?;
+            Self::create_executor_session_record(
+                pool,
+                attempt_id,
+                task_id,
+                process_id,
+                followup_prompt,
+            )
+            .await?;
         }
 
         // Create activity record (skip for dev servers as they run in parallel)
@@ -960,7 +972,11 @@ impl TaskAttempt {
             let diff = if parents.len() >= 2 {
                 let base_tree = parents[0].tree()?; // Main branch before merge
                 let merged_tree = parents[1].tree()?; // The branch that was merged
-                main_repo.diff_tree_to_tree(Some(&base_tree), Some(&merged_tree), Some(&mut diff_opts))?
+                main_repo.diff_tree_to_tree(
+                    Some(&base_tree),
+                    Some(&merged_tree),
+                    Some(&mut diff_opts),
+                )?
             } else {
                 // Fast-forward merge or single parent - compare merge commit with its parent
                 let base_tree = if !parents.is_empty() {
@@ -970,7 +986,11 @@ impl TaskAttempt {
                     main_repo.find_tree(git2::Oid::zero())?
                 };
                 let merged_tree = merge_commit.tree()?;
-                main_repo.diff_tree_to_tree(Some(&base_tree), Some(&merged_tree), Some(&mut diff_opts))?
+                main_repo.diff_tree_to_tree(
+                    Some(&base_tree),
+                    Some(&merged_tree),
+                    Some(&mut diff_opts),
+                )?
             };
 
             // Process each diff delta (file change)
@@ -1048,9 +1068,12 @@ impl TaskAttempt {
             let mut diff_opts = git2::DiffOptions::new();
             diff_opts.context_lines(10); // Include 10 lines of context around changes
             diff_opts.interhunk_lines(0); // Don't merge hunks
-            
-            let diff =
-                worktree_repo.diff_tree_to_tree(Some(&base_tree), Some(&current_tree), Some(&mut diff_opts))?;
+
+            let diff = worktree_repo.diff_tree_to_tree(
+                Some(&base_tree),
+                Some(&current_tree),
+                Some(&mut diff_opts),
+            )?;
 
             // Process each diff delta (file change)
             diff.foreach(
@@ -1249,8 +1272,12 @@ impl TaskAttempt {
             statuses.iter().any(|entry| {
                 let status = entry.status();
                 // Check for any unstaged or staged changes
-                status.is_wt_modified() || status.is_wt_new() || status.is_wt_deleted() ||
-                status.is_index_modified() || status.is_index_new() || status.is_index_deleted()
+                status.is_wt_modified()
+                    || status.is_wt_new()
+                    || status.is_wt_deleted()
+                    || status.is_index_modified()
+                    || status.is_index_new()
+                    || status.is_index_deleted()
             })
         };
 

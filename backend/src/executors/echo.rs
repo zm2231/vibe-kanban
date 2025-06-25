@@ -2,8 +2,10 @@ use async_trait::async_trait;
 use tokio::process::{Child, Command};
 use uuid::Uuid;
 
-use crate::executor::{Executor, ExecutorError};
-use crate::models::task::Task;
+use crate::{
+    executor::{Executor, ExecutorError},
+    models::task::Task,
+};
 
 /// A dummy executor that echoes the task title and description
 pub struct EchoExecutor;
