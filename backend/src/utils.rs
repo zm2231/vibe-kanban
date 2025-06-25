@@ -1,5 +1,6 @@
-use directories::ProjectDirs;
 use std::env;
+
+use directories::ProjectDirs;
 
 pub fn asset_dir() -> std::path::PathBuf {
     let proj = if cfg!(debug_assertions) {

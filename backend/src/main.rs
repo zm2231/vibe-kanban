@@ -1,3 +1,5 @@
+use std::{str::FromStr, sync::Arc};
+
 use axum::{
     body::Body,
     extract::Extension,
@@ -8,8 +10,6 @@ use axum::{
 };
 use rust_embed::RustEmbed;
 use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
-use std::str::FromStr;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 
@@ -87,6 +87,7 @@ async fn serve_sound_file(
     axum::extract::Path(filename): axum::extract::Path<String>,
 ) -> impl IntoResponse {
     use std::path::Path;
+
     use tokio::fs;
 
     // Validate filename contains only expected sound files

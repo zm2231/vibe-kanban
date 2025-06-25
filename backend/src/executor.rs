@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Child;
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Child,
+};
 use ts_rs::TS;
 use uuid::Uuid;
 
@@ -156,8 +158,7 @@ pub async fn stream_output_to_db(
     execution_process_id: Uuid,
     is_stdout: bool,
 ) {
-    use crate::models::execution_process::ExecutionProcess;
-    use crate::models::executor_session::ExecutorSession;
+    use crate::models::{execution_process::ExecutionProcess, executor_session::ExecutorSession};
 
     let mut reader = BufReader::new(output);
     let mut line = String::new();

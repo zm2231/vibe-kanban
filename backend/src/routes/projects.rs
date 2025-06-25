@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use axum::{
     extract::{Extension, Path, Query},
     http::StatusCode,
@@ -6,11 +8,12 @@ use axum::{
     Json, Router,
 };
 use sqlx::SqlitePool;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::models::{
-    project::{CreateProject, Project, ProjectWithBranch, SearchMatchType, SearchResult, UpdateProject},
+    project::{
+        CreateProject, Project, ProjectWithBranch, SearchMatchType, SearchResult, UpdateProject,
+    },
     ApiResponse,
 };
 
@@ -305,8 +308,9 @@ async fn search_files_in_repo(
     repo_path: &str,
     query: &str,
 ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error + Send + Sync>> {
-    use ignore::WalkBuilder;
     use std::path::Path;
+
+    use ignore::WalkBuilder;
 
     let repo_path = Path::new(repo_path);
 

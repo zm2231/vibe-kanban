@@ -183,7 +183,7 @@ impl Project {
     pub fn get_current_branch(&self) -> Result<String, git2::Error> {
         let repo = Repository::open(&self.git_repo_path)?;
         let head = repo.head()?;
-        
+
         if let Some(branch_name) = head.shorthand() {
             Ok(branch_name.to_string())
         } else {
@@ -193,7 +193,7 @@ impl Project {
 
     pub fn with_branch_info(self) -> ProjectWithBranch {
         let current_branch = self.get_current_branch().ok();
-        
+
         ProjectWithBranch {
             id: self.id,
             name: self.name,

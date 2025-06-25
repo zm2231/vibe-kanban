@@ -2,8 +2,10 @@ use async_trait::async_trait;
 use tokio::process::Child;
 use uuid::Uuid;
 
-use crate::executor::{Executor, ExecutorError};
-use crate::models::task::Task;
+use crate::{
+    executor::{Executor, ExecutorError},
+    models::task::Task,
+};
 
 /// An executor that uses Amp to process tasks
 pub struct AmpExecutor;
@@ -28,6 +30,7 @@ impl Executor for AmpExecutor {
             .ok_or(ExecutorError::TaskNotFound)?;
 
         use std::process::Stdio;
+
         use tokio::{io::AsyncWriteExt, process::Command};
 
         let prompt = format!(
@@ -69,6 +72,7 @@ impl Executor for AmpFollowupExecutor {
         worktree_path: &str,
     ) -> Result<Child, ExecutorError> {
         use std::process::Stdio;
+
         use tokio::{io::AsyncWriteExt, process::Command};
 
         let mut child = Command::new("npx")

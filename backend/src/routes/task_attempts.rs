@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     extract::{Extension, Path, Query},
     http::StatusCode,
@@ -6,7 +8,6 @@ use axum::{
     Json, Router,
 };
 use sqlx::SqlitePool;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -17,7 +18,9 @@ use crate::models::{
         BranchStatus, CreateFollowUpAttempt, CreateTaskAttempt, TaskAttempt, TaskAttemptStatus,
         WorktreeDiff,
     },
-    task_attempt_activity::{CreateTaskAttemptActivity, TaskAttemptActivity, TaskAttemptActivityWithPrompt},
+    task_attempt_activity::{
+        CreateTaskAttemptActivity, TaskAttemptActivity, TaskAttemptActivityWithPrompt,
+    },
     ApiResponse,
 };
 
