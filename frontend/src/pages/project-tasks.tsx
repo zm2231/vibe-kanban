@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -90,7 +90,7 @@ export function ProjectTasks() {
     }
   }, [taskId, tasks]);
 
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     try {
       const response = await makeRequest(
         `/api/projects/${projectId}/with-branch`
@@ -108,53 +108,56 @@ export function ProjectTasks() {
     } catch (err) {
       setError('Failed to load project');
     }
-  };
+  }, [projectId, navigate]);
 
-  const fetchTasks = async (skipLoading = false) => {
-    try {
-      if (!skipLoading) {
-        setLoading(true);
-      }
-      const response = await makeRequest(`/api/projects/${projectId}/tasks`);
-
-      if (response.ok) {
-        const result: ApiResponse<Task[]> = await response.json();
-        if (result.success && result.data) {
-          // Only update if data has actually changed
-          setTasks((prevTasks) => {
-            const newTasks = result.data!;
-            if (JSON.stringify(prevTasks) === JSON.stringify(newTasks)) {
-              return prevTasks; // Return same reference to prevent re-render
-            }
-
-            // Update selectedTask if it exists and has been modified
-            if (selectedTask) {
-              const updatedSelectedTask = newTasks.find(
-                (task) => task.id === selectedTask.id
-              );
-              if (
-                updatedSelectedTask &&
-                JSON.stringify(selectedTask) !==
-                  JSON.stringify(updatedSelectedTask)
-              ) {
-                setSelectedTask(updatedSelectedTask);
-              }
-            }
-
-            return newTasks;
-          });
+  const fetchTasks = useCallback(
+    async (skipLoading = false) => {
+      try {
+        if (!skipLoading) {
+          setLoading(true);
         }
-      } else {
+        const response = await makeRequest(`/api/projects/${projectId}/tasks`);
+
+        if (response.ok) {
+          const result: ApiResponse<Task[]> = await response.json();
+          if (result.success && result.data) {
+            // Only update if data has actually changed
+            setTasks((prevTasks) => {
+              const newTasks = result.data!;
+              if (JSON.stringify(prevTasks) === JSON.stringify(newTasks)) {
+                return prevTasks; // Return same reference to prevent re-render
+              }
+
+              // Update selectedTask if it exists and has been modified
+              if (selectedTask) {
+                const updatedSelectedTask = newTasks.find(
+                  (task) => task.id === selectedTask.id
+                );
+                if (
+                  updatedSelectedTask &&
+                  JSON.stringify(selectedTask) !==
+                    JSON.stringify(updatedSelectedTask)
+                ) {
+                  setSelectedTask(updatedSelectedTask);
+                }
+              }
+
+              return newTasks;
+            });
+          }
+        } else {
+          setError('Failed to load tasks');
+        }
+      } catch (err) {
         setError('Failed to load tasks');
+      } finally {
+        if (!skipLoading) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      setError('Failed to load tasks');
-    } finally {
-      if (!skipLoading) {
-        setLoading(false);
-      }
-    }
-  };
+    },
+    [projectId, selectedTask]
+  );
 
   const handleCreateTask = async (title: string, description: string) => {
     try {
