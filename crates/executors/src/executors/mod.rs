@@ -15,7 +15,7 @@ use utils::msg_store::MsgStore;
 use crate::{
     executors::{
         amp::Amp, claude::ClaudeCode, codex::Codex, cursor::Cursor, gemini::Gemini,
-        opencode::Opencode, qwen::QwenCode,
+        opencode::Opencode, qwen::QwenCode, warp_cli::WarpCli,
     },
     mcp_config::McpConfig,
 };
@@ -27,6 +27,7 @@ pub mod cursor;
 pub mod gemini;
 pub mod opencode;
 pub mod qwen;
+pub mod warp_cli;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -75,6 +76,7 @@ pub enum CodingAgent {
     Opencode,
     Cursor,
     QwenCode,
+    WarpCli,
 }
 
 impl CodingAgent {
@@ -138,7 +140,7 @@ impl CodingAgent {
             Self::ClaudeCode(_) => vec![BaseAgentCapability::RestoreCheckpoint],
             Self::Amp(_) => vec![BaseAgentCapability::RestoreCheckpoint],
             Self::Codex(_) => vec![BaseAgentCapability::RestoreCheckpoint],
-            Self::Gemini(_) | Self::Opencode(_) | Self::Cursor(_) | Self::QwenCode(_) => vec![],
+            Self::Gemini(_) | Self::Opencode(_) | Self::Cursor(_) | Self::QwenCode(_) | Self::WarpCli(_) => vec![],
         }
     }
 }

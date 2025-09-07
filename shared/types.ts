@@ -34,9 +34,9 @@ export type ScriptRequest = { script: string, language: ScriptRequestLanguage, c
 
 export type ScriptRequestLanguage = "Bash";
 
-export enum BaseCodingAgent { CLAUDE_CODE = "CLAUDE_CODE", AMP = "AMP", GEMINI = "GEMINI", CODEX = "CODEX", OPENCODE = "OPENCODE", CURSOR = "CURSOR", QWEN_CODE = "QWEN_CODE" }
+export enum BaseCodingAgent { CLAUDE_CODE = "CLAUDE_CODE", AMP = "AMP", GEMINI = "GEMINI", CODEX = "CODEX", OPENCODE = "OPENCODE", CURSOR = "CURSOR", QWEN_CODE = "QWEN_CODE", WARP_CLI = "WARP_CLI" }
 
-export type CodingAgent = { "CLAUDE_CODE": ClaudeCode } | { "AMP": Amp } | { "GEMINI": Gemini } | { "CODEX": Codex } | { "OPENCODE": Opencode } | { "CURSOR": Cursor } | { "QWEN_CODE": QwenCode };
+export type CodingAgent = { "CLAUDE_CODE": ClaudeCode } | { "AMP": Amp } | { "GEMINI": Gemini } | { "CODEX": Codex } | { "OPENCODE": Opencode } | { "CURSOR": Cursor } | { "QWEN_CODE": QwenCode } | { "WARP_CLI": WarpCli };
 
 export type TaskTemplate = { id: string, project_id: string | null, title: string, description: string | null, template_name: string, created_at: string, updated_at: string, };
 
@@ -132,7 +132,7 @@ executor: BaseCodingAgent,
  */
 variant: string | null, };
 
-export type ExecutorConfig = { [key in string]?: { "CLAUDE_CODE": ClaudeCode } | { "AMP": Amp } | { "GEMINI": Gemini } | { "CODEX": Codex } | { "OPENCODE": Opencode } | { "CURSOR": Cursor } | { "QWEN_CODE": QwenCode } };
+export type ExecutorConfig = { [key in string]?: { "CLAUDE_CODE": ClaudeCode } | { "AMP": Amp } | { "GEMINI": Gemini } | { "CODEX": Codex } | { "OPENCODE": Opencode } | { "CURSOR": Cursor } | { "QWEN_CODE": QwenCode } | { "WARP_CLI": WarpCli } };
 
 export type BaseAgentCapability = "RESTORE_CHECKPOINT";
 
@@ -155,6 +155,8 @@ export type Cursor = { append_prompt: AppendPrompt, force?: boolean | null, mode
 export type Opencode = { append_prompt: AppendPrompt, model?: string | null, agent?: string | null, base_command_override?: string | null, additional_params?: Array<string> | null, };
 
 export type QwenCode = { append_prompt: AppendPrompt, yolo?: boolean | null, base_command_override?: string | null, additional_params?: Array<string> | null, };
+
+export type WarpCli = { append_prompt: AppendPrompt, profile?: string | null, mcp_servers?: Array<string>, extra_flags?: Array<string>, binary?: string | null, base_command_override?: string | null, additional_params?: Array<string> | null, };
 
 export type AppendPrompt = string | null;
 
