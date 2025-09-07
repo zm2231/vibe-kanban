@@ -64,6 +64,11 @@
           "force": true
         }
       }
+    },
+    "WARP_CLI": {
+      "DEFAULT": {
+        "WARP_CLI": {}
+      }
     }
   }
 }

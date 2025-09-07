@@ -17,7 +17,8 @@ type ExecutorType =
   | 'CODEX'
   | 'CURSOR'
   | 'OPENCODE'
-  | 'QWEN_CODE';
+  | 'QWEN_CODE'
+  | 'WARP_CLI';
 
 interface ExecutorConfigFormProps {
   executor: ExecutorType;

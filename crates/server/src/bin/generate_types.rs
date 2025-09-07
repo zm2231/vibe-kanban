@@ -76,6 +76,7 @@ fn generate_types_content() -> String {
         executors::executors::cursor::Cursor::decl(),
         executors::executors::opencode::Opencode::decl(),
         executors::executors::qwen::QwenCode::decl(),
+        executors::executors::warp_cli::WarpCli::decl(),
         executors::executors::AppendPrompt::decl(),
         executors::actions::coding_agent_initial::CodingAgentInitialRequest::decl(),
         executors::actions::coding_agent_follow_up::CodingAgentFollowUpRequest::decl(),
@@ -167,6 +168,7 @@ fn generate_schemas() -> Result<(), Box<dyn std::error::Error>> {
     write_schema::<executors::executors::cursor::Cursor>("cursor", schemas_dir)?;
     write_schema::<executors::executors::opencode::Opencode>("opencode", schemas_dir)?;
     write_schema::<executors::executors::qwen::QwenCode>("qwen_code", schemas_dir)?;
+    write_schema::<executors::executors::warp_cli::WarpCli>("warp_cli", schemas_dir)?;
 
     Ok(())
 }
